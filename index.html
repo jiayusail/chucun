@@ -3002,8 +3002,14 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 }
 .suggest-box h4{margin:0 0 14px;color:#2d3748;}
 .suggest-box input,.suggest-box textarea{
-    width:100%;border:1px solid #e2e8f0;padding:8px;border-radius:4px;
-    margin-bottom:12px;outline:none;font-size:14px;
+    width:100%;
+    border:1px solid #e2e8f0;
+    padding:8px;
+    border-radius:4px;
+    margin-bottom:12px;
+    outline:none;
+    font-size:14px;
+    box-sizing: border-box; /* 修复宽度溢出 */
 }
 .suggest-box textarea{min-height:90px;resize:none;}
 .btn-group{display:flex;gap:10px;justify-content:flex-end;margin-top:8px;}
@@ -3060,11 +3066,14 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 <div class="suggest-modal" id="suggestModal">
     <div class="suggest-box">
         <h4>提交意见建议</h4>
-        <input id="userMail" type="text" placeholder="填写您的联系邮箱">
-        <textarea id="userMsg" placeholder="填写反馈内容..."></textarea>
+        <input id="userMail" type="email" autocomplete="email" placeholder="填写您的联系邮箱">
+        <textarea id="userMsg" autocomplete="off" placeholder="填写反馈内容..."></textarea>
+        <p style="font-size:12px;color:#718096;margin:0 0 12px;line-height:1.4;">
+            您的邮箱仅用于回复反馈意见，不会用于其他用途，提交即表示同意我们处理您的信息。
+        </p>
         <div class="btn-group">
-            <button class="btn-close" onclick="closeSuggest()">关闭</button>
-            <button class="btn-sub" onclick="submitSuggest()">提交</button>
+            <button type="button" class="btn-close" onclick="closeSuggest()">关闭</button>
+            <button type="button" id="submitBtn" class="btn-sub" onclick="submitSuggest()">提交</button>
         </div>
     </div>
 </div>
@@ -3130,23 +3139,56 @@ const FORMSPREE_URL = "https://formspree.io/f/xqeoajly";
 function openSuggest(){document.getElementById('suggestModal').style.display='flex';}
 function closeSuggest(){document.getElementById('suggestModal').style.display='none';}
 function submitSuggest(){
-    let mail=document.getElementById('userMail').value.trim();
-    let msg=document.getElementById('userMsg').value.trim();
-    if(!mail||!msg){showToast('邮箱和内容不能为空');return;}
+    const mailInput = document.getElementById('userMail');
+    const msgInput = document.getElementById('userMsg');
+    const submitBtn = document.getElementById('submitBtn'); // 改为ID选择器
+    
+    const mail = mailInput.value.trim();
+    const msg = msgInput.value.trim();
+
+    if(!mail || !msg){
+        showToast('邮箱和反馈内容不能为空');
+        return;
+    }
+    // 增强版邮箱验证
+    const emailReg = /^[^\s@]+(?:\.[^\s@]+)*@[^\s@]+(?:\.[^\s@]+)+$/;
+    if(!emailReg.test(mail)){
+        showToast('请输入有效的邮箱地址');
+        return;
+    }
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = '提交中...';
+
     fetch(FORMSPREE_URL,{
         method:'POST',
-        headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:`email=${encodeURIComponent(mail)}&message=${encodeURIComponent(msg)}`
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({
+            email: mail,
+            message: msg
+        })
     }).then(res=>{
         if(res.ok){
             showToast('意见提交成功！感谢反馈');
-            document.getElementById('userMail').value='';
-            document.getElementById('userMsg').value='';
+            mailInput.value = '';
+            msgInput.value = '';
             closeSuggest();
+        }else{
+            return res.text().then(err => {
+                throw new Error(err || '服务器响应错误');
+            });
+        }
+    }).catch(err=>{
+        console.error('提交失败详情：', err);
+        if(location.protocol === 'file:'){
+            showToast('本地文件预览无法提交，请部署到服务器后测试');
         }else{
             showToast('提交失败，请稍后重试');
         }
-    }).catch(()=>{showToast('本地预览无法提交，上线网站可用');})
+    }).finally(()=>{
+        submitBtn.disabled = false;
+        submitBtn.textContent = '提交';
+    });
 }
 
 //更新日志
