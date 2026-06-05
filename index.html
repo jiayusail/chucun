@@ -3123,8 +3123,8 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 </div>
 
 <script>
-const SUBMIT_URL = "https://formsubmit.co";
-const MY_EMAIL = "jiayusail@foxmail.com";
+// Formspree表单端点
+const FORMSPREE_URL = "https://formspree.io/f/xqeoajly";
 
 //意见
 function openSuggest(){document.getElementById('suggestModal').style.display='flex';}
@@ -3133,15 +3133,19 @@ function submitSuggest(){
     let mail=document.getElementById('userMail').value.trim();
     let msg=document.getElementById('userMsg').value.trim();
     if(!mail||!msg){showToast('邮箱和内容不能为空');return;}
-    fetch(SUBMIT_URL,{
+    fetch(FORMSPREE_URL,{
         method:'POST',
         headers:{'Content-Type':'application/x-www-form-urlencoded'},
-        body:`_to=${encodeURIComponent(MY_EMAIL)}&email=${encodeURIComponent(mail)}&message=${encodeURIComponent(msg)}`
-    }).then(()=>{
-        showToast('意见提交成功！感谢反馈');
-        document.getElementById('userMail').value='';
-        document.getElementById('userMsg').value='';
-        closeSuggest();
+        body:`email=${encodeURIComponent(mail)}&message=${encodeURIComponent(msg)}`
+    }).then(res=>{
+        if(res.ok){
+            showToast('意见提交成功！感谢反馈');
+            document.getElementById('userMail').value='';
+            document.getElementById('userMsg').value='';
+            closeSuggest();
+        }else{
+            showToast('提交失败，请稍后重试');
+        }
     }).catch(()=>{showToast('本地预览无法提交，上线网站可用');})
 }
 
