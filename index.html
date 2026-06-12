@@ -23,7 +23,7 @@
 <link rel="manifest" href="/cnc/favicons/site.webmanifest">
 <meta name="msapplication-config" content="/cnc/favicons/browserconfig.xml">
 <meta name="theme-color" content="#ffffff">
-<title>阿宇数控刷题宝（增综合）</title>
+<title>阿宇数控答题库·增强版</title>
 <style>
 *{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif;margin:0;padding:0;}
 body{background:#f5f7fa;padding:20px;padding-bottom:120px;}
@@ -1104,7 +1104,7 @@ body.dark-mode #examBtns button svg * {
 </head>
 <body>
 <div class="container">
-    <h1>数控刷题宝（综合版）</h1>
+    <h1>数控答题库·增强版</h1>
     <div id="loading" class="loading">正在加载题库，请稍候...</div>
     <div id="error" class="error" style="display:none;"></div>
     <div id="app" style="display:none;">
@@ -1120,6 +1120,7 @@ body.dark-mode #examBtns button svg * {
                 <option value="加工参数">加工参数</option>
                 <option value="机械图纸">机械图纸</option>
                 <option value="工艺夹具">工艺夹具</option>
+                <option value="安全知识">安全知识</option>
             </select>
         </div>
         <div class="progress-bar" id="progressWrap">
@@ -2116,10 +2117,11 @@ var fullBank = [
 {"q":"六点定位原理是指限制工件的几个自由度","opt":["A.3个","B.6个","C.9个","D.12个"],"ans":"B","tip":"六点定位原理限制工件的6个自由度：3个移动+3个转动。","cate":"工艺夹具"},
 {"q":"完全定位是指","opt":["A.限制多于6个自由度","B.限制少于6个自由度","C.限制全部6个自由度","D.限制部分自由度"],"ans":"C","tip":"完全定位限制工件的全部6个自由度。","cate":"工艺夹具"},
 {"q":"不完全定位是指","opt":["A.根据加工要求限制部分自由度","B.限制少于3个自由度","C.限制全部自由度","D.限制多于6个自由度"],"ans":"A","tip":"不完全定位根据加工要求限制必要的自由度，是允许的。","cate":"工艺夹具"},
-{"q":"装夹是指","opt":["A.夹紧","B.定位+夹紧","C.定位","D.加工"],"ans":"B","tip":"装夹包括定位和夹紧两个过程。","cate":"工艺夹具"}
+{"q":"装夹是指","opt":["A.夹紧","B.定位+夹紧"],"ans":"B","tip":"装夹包括定位和夹紧两个过程。","cate":"安全知识"}
 ];
 var pageSizeExam = 25;
 var mode = "recite"; // 默认背题模式
+var examAnswers = {}; // 新增：存储考试模式的答题记录（key:题目索引, value:选中的选项值）
 var reciteIndex = 0; // 背题模式独立题目索引
 var practiceIndex = 0; // 答题模式独立题目索引
 var currentExamList = [];
@@ -2136,6 +2138,7 @@ var countdownRunning = false;
 var currentExamSize = 25; // 当前选择的题目数量
 var currentExamTime = 10; // 当前选择的考试时长（分钟）
 var pageSizeExam = 25; // 考试模式每页题目数（动态）
+var examSubmitted = false; // 新增：标记考试是否已提交
 // 滑动切换相关变量
 var touchStartX = 0;
 var touchEndX = 0;
@@ -2146,10 +2149,10 @@ var favorites = []; // 收藏的题目索引
 var wrongQuestions = []; // 错题记录
 var currentListType = "all"; // 当前列表类型：all-全部, random-随机, wrong-错题, favorite-收藏
 var shuffleOptions = true; // 全局开关：是否打乱选项（默认关闭，要默认开启改成true）
-// 本地存储相关函数
+// 考试本地存储相关函数
 function saveToLocalStorage() {
     try {
-        var data = {
+		var data = {
 		    practiceAnswers: practiceAnswers,
 		    practiceJudge: practiceJudge,
 		    favorites: favorites,
@@ -2157,9 +2160,14 @@ function saveToLocalStorage() {
 		    currentCategory: currentCategory,
 		    currentPracticeIndex: currentPracticeIndex,
 		    shuffleOptions: shuffleOptions,
-		    reciteIndex: reciteIndex,// 新增下三行
+		    reciteIndex: reciteIndex,
 		    practiceIndex: practiceIndex,
-		    currentMode: mode
+		    currentMode: mode,
+		    currentExamList: currentExamList,
+		    countdownTime: countdownTime,
+		    countdownRunning: countdownRunning,
+		    examAnswers: examAnswers,
+		    examSubmitted: examSubmitted // 保存考试提交状态
 		};
         localStorage.setItem('cncTestData', JSON.stringify(data));
     } catch(e) {
@@ -2187,7 +2195,13 @@ function loadFromLocalStorage() {
         if(mode === "recite") currentPracticeIndex = reciteIndex;
         if(mode === "practice") currentPracticeIndex = practiceIndex;
     }
-    
+		// 新增：加载考试模式保存的状态
+	if(parsed.currentExamList) currentExamList = parsed.currentExamList;
+	if(parsed.countdownTime) countdownTime = parsed.countdownTime;
+	if(parsed.countdownRunning) countdownRunning = parsed.countdownRunning;
+	if(parsed.examAnswers) examAnswers = parsed.examAnswers;
+	if(parsed.examSubmitted !== undefined) examSubmitted = parsed.examSubmitted;
+
     // 设置分类选择器
     categorySelect.value = currentCategory;
     // 同步上次使用的模式按钮状态
@@ -2579,7 +2593,17 @@ function initApp() {
         // 绑定模式切换事件
         var modeBtns = document.querySelectorAll('.mode-btn');
         for(var i=0; i<modeBtns.length; i++){
-			    modeBtns[i].addEventListener('click', function(){
+				modeBtns[i].addEventListener('click', function(){
+				// ========== 考试未提交禁止切换模式 ==========
+				if(mode === "exam" && !examSubmitted) {
+				    var hasExamAnswers = document.querySelectorAll('.question input[type="radio"]:checked').length > 0;
+				    if(hasExamAnswers || countdownRunning) {
+				        showToast("⚠️ 请完成考试后，方可进行操作！");
+				        return;
+				    }
+				}
+				// ========== 修改结束 ==========
+			
 			    // 1. 先保存当前模式的索引（仅背题/答题模式）
 			    var oldMode = mode;
 			    if(oldMode === "recite") {
@@ -2587,7 +2611,7 @@ function initApp() {
 			    } else if(oldMode === "practice") {
 			        practiceIndex = currentPracticeIndex;
 			    }
-			
+
 			    // 2. 更新模式按钮状态
 			    for(var j=0; j<modeBtns.length; j++){
 			        removeClass(modeBtns[j], 'active');
@@ -2621,13 +2645,22 @@ function initApp() {
 			        statsBar.style.display = "none";
 			        countdownBtn.style.display = "flex";
 			        progressWrap.style.display = "none";
-			        resetCountdown();
-			        getNewExamBatch();
-			        renderExam();
-			        // 进入考试模式自动弹出选择弹窗
-			        setTimeout(() => {
-			            document.getElementById('allListExam').click();
-			        }, 300);    
+                    
+                    // 已有未提交的考试记录则直接恢复，否则生成新题
+                    if(currentExamList.length > 0 && !examSubmitted){
+                        renderExam();
+                        if(countdownRunning){
+                            toggleCountdown();
+                        }
+                        showToast("已恢复上次考试进度");
+                    } else {
+                        resetCountdown();
+                        getNewExamBatch();
+                        renderExam();
+                        setTimeout(() => {
+                            document.getElementById('allListExam').click();
+                        }, 300);
+                    }
 			    }else{
 			        examBtns.style.display = "none";
 			        practiceBtns.style.display = "flex";
@@ -2737,8 +2770,12 @@ function initApp() {
 		    
 		    showLongToast(resultHtml);
 		    
-		    // 停止倒计时
-		    resetCountdown();
+			// 停止倒计时
+			resetCountdown();
+			examSubmitted = true; // 新增：标记考试已提交
+			// 提交后清空考试答题记录
+			examAnswers = {};
+			saveToLocalStorage();
 		});
 
 		document.getElementById('reset').addEventListener('click', function(){
@@ -2767,7 +2804,8 @@ function initApp() {
 		    resetCountdown();
 		    // ✅ 新增：自动重新开始倒计时
 		    toggleCountdown();
-		    
+		
+		    examSubmitted = false; // 新增：重置后恢复未提交状态
 		    showToast("已清空所有答案，并重新计时");
 		    wrongList = []; // 重置时清空错题列表
 		});
@@ -2779,6 +2817,7 @@ function initApp() {
             }
             currentExamList = copyArray(wrongList);
             resetCountdown();
+            examSubmitted = false; // 新增：重做错题重置为未提交
             renderExam();
             showToast("进入错题重做模式");
         });
@@ -2786,6 +2825,7 @@ function initApp() {
         document.getElementById('change').addEventListener('click', function(){
             getNewExamBatch();
             resetCountdown();
+            examSubmitted = false; // 新增：换题后重置为未提交
             renderExam();
             showToast("已更换一组题目");
         });
@@ -2881,16 +2921,61 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
         // 初始化知识拓展折叠功能
         initKnowledgeToggle();
         
-        // 初始化
-        initQuestionList();
-        renderPractice();
-        updateStats(); // 初始化统计
+        // ========== 修复：根据上次保存的模式自动初始化对应UI ==========
+        // ========== 修复：根据上次保存的模式自动初始化对应UI ==========
+        if(mode === "exam"){
+            // 考试模式UI
+            examBtns.style.display = "flex";
+            practiceBtns.style.display = "none";
+            statsBar.style.display = "none";
+            countdownBtn.style.display = "flex";
+            progressWrap.style.display = "none";
+            
+            // 只要有保存的题目就直接恢复，不管有没有答题
+            var hasSavedExam = currentExamList.length > 0;
+            if(!hasSavedExam){
+                // 没有保存的考试，才生成新题并弹出选择
+                resetCountdown();
+                getNewExamBatch();
+                examAnswers = {};
+                examSubmitted = false;
+                saveToLocalStorage();
+                setTimeout(() => {
+                    document.getElementById('allListExam').click();
+                }, 300);
+            } else {
+                // 有保存的考试，直接渲染题目+恢复答题记录
+                renderExam();
+                // 如果之前倒计时在运行，继续倒计时
+                if(countdownRunning){
+                    toggleCountdown();
+                }
+                showToast("✅ 已恢复上次考试题目和答题记录");
+        }
+        }else{
+            // 背题/答题模式UI
+            examBtns.style.display = "none";
+            practiceBtns.style.display = "flex";
+            statsBar.style.display = "flex";
+            countdownBtn.style.display = "none";
+            progressWrap.style.display = "block";
+            resetCountdown();
+            initQuestionList();
+            // 索引越界保护（防止上次分类题目数减少导致报错）
+            var bank = getCateBank();
+            if(currentPracticeIndex >= bank.length) {
+                currentPracticeIndex = bank.length - 1;
+                // 同步对应模式的独立索引
+                if(mode === "recite") reciteIndex = currentPracticeIndex;
+                if(mode === "practice") practiceIndex = currentPracticeIndex;
+            }
+            renderPractice();
+            updateStats();
+        }
         
         // 隐藏加载，显示应用
         document.getElementById('loading').style.display = 'none';
         document.getElementById('app').style.display = 'block';
-        statsBar.style.display = 'flex'; // 默认背题模式显示统计
-        countdownBtn.style.display = 'none'; // 默认隐藏倒计时按钮		
 	// 电脑端键盘左右键切换上下题（仅背题/答题模式生效）
 document.addEventListener('keydown', function(e) {
     // 仅在背题/答题模式生效，考试模式禁用
@@ -3053,6 +3138,10 @@ function shuffle(arr){
 function getNewExamBatch(){
     var bank = getCateBank();
     currentExamList = shuffle(bank).slice(0, pageSizeExam);
+    // 生成新题组时自动清空答题记录+同步本地存储
+    examAnswers = {};
+    examSubmitted = false; // 新增：新题组重置为未提交
+    saveToLocalStorage();
 }
 function renderExam(){
     box.innerHTML="";
@@ -3107,20 +3196,42 @@ item._correctContent = correctAnswerContent;
         box.appendChild(div);
     }
     
-    // 考试模式也添加整行点击功能
-    var options = document.querySelectorAll('.option');
-    for(var k=0; k<options.length; k++){
-        options[k].addEventListener('click', function(){
-            var radio = this.querySelector('input[type=radio]');
-            if(radio) {
-                radio.checked = true;
-                // 触发change事件（如果有需要）
-                var event = new Event('change');
-                radio.dispatchEvent(event);
-            }
-        });
-    }
-    
+	// 考试模式也添加整行点击功能
+	var options = document.querySelectorAll('.option');
+	for(var k=0; k<options.length; k++){
+	    options[k].addEventListener('click', function(){
+	        var radio = this.querySelector('input[type=radio]');
+	        if(radio) {
+	            radio.checked = true;
+	            // 触发change事件（如果有需要）
+	            var event = new Event('change');
+	            radio.dispatchEvent(event);
+	        }
+	    });
+	}
+	
+	// ========== 新增：恢复考试答题记录并实时保存 ==========
+	var radios = document.querySelectorAll('.question input[type="radio"]');
+	for(var k=0; k<radios.length; k++){
+	    var radio = radios[k];
+	    var questionIndex = parseInt(radio.name.substring(1));
+	    // 获取当前选项的纯文本内容（去掉A./B.前缀）
+	    var optionText = radio.parentElement.textContent.trim();
+	    var optionContent = getOptionContent(optionText);
+	    // 按内容匹配恢复选中，完全不受选项打乱影响
+	    if(examAnswers[questionIndex] === optionContent){
+	        radio.checked = true;
+	    }
+	    // 实时保存答题记录（存纯内容，和练习模式逻辑一致）
+	    radio.addEventListener('change', function(){
+	        var qIdx = parseInt(this.name.substring(1));
+	        var selOptionText = this.parentElement.textContent.trim();
+	        examAnswers[qIdx] = getOptionContent(selOptionText);
+	        saveToLocalStorage();
+	    });
+	}	
+	// ========== 新增结束 ==========
+
     // 清除之前的提示
     if(toastTimer) clearTimeout(toastTimer);
     if(currentToast) {
