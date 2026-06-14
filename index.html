@@ -653,11 +653,157 @@ body.dark-mode .search-result-item .options {
     border-radius: 2px;
     font-weight: 500;
 }
-/* 消除移动端按钮点击高亮残留 */
-.func-btn {
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    user-select: none;
+/* ===== 夜间模式引导弹窗 - 统一风格 ===== */
+/* 弹窗根容器 */
+.tip-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+/* 遮罩层 */
+.tip-modal-mask {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* 弹窗主体 */
+.tip-modal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 88%;
+  max-width: 320px;
+  padding: 24px 20px 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+/* 提示文字 */
+.tip-modal-text {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333333;
+  text-align: center;
+}
+
+/* 按钮组 */
+.tip-modal-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* 通用按钮基础样式（和现有按钮规格一致） */
+.btn {
+  padding: 8px 22px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn:hover {
+  opacity: 0.85;
+}
+
+/* 默认按钮（灰色未激活态） */
+.btn-default {
+  background: #f0f0f0;
+  color: #666666;
+}
+
+/* ===== 夜间模式引导弹窗 - 统一风格 ===== */
+/* 弹窗根容器 */
+.tip-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+}
+
+/* 遮罩层 */
+.tip-modal-mask {
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+/* 弹窗主体 */
+.tip-modal-box {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 88%;
+  max-width: 320px;
+  padding: 24px 20px 20px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+/* 提示文字 */
+.tip-modal-text {
+  margin: 0 0 20px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #333333;
+  text-align: center;
+}
+
+/* 按钮组 */
+.tip-modal-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* 通用按钮基础样式（和现有按钮规格一致） */
+.btn {
+  padding: 8px 22px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.btn:hover {
+  opacity: 0.85;
+}
+
+/* 默认按钮（灰色未激活态） */
+.btn-default {
+  background: #f0f0f0;
+  color: #666666;
+}
+
+/* 主按钮（蓝色激活态，和active按钮同色） */
+.btn-primary {
+  background: #1677ff;
+  color: #ffffff;
+}
+
+/* ===== 夜间模式自动适配 ===== */
+.dark-mode .tip-modal-box {
+  background: #2a2a2a;
+}
+.dark-mode .tip-modal-text {
+  color: #e0e0e0;
+}
+.dark-mode .btn-default {
+  background: #3a3a3a;
+  color: #cccccc;
+}
+.dark-mode .btn-primary {
+  background: #4096ff;
+  color: #ffffff;
+}
+.dark-mode .tip-modal-mask {
+  background: rgba(0, 0, 0, 0.6);
 }
 </style>
 <style>
@@ -1496,7 +1642,7 @@ body.dark-mode .result-close-tip {
 <button id="countdownBtn" title="开始考试倒计时">▶</button>
 <div class="list-modal" id="listModal">
     <div class="list-box">
-        <div class="list-title" id="listTitle">全部题目列表（共500题）</div>
+        <div class="list-title" id="listTitle">全部题目列表（组件）</div>
         <!-- 新增：题目搜索框 -->
         <input type="text" id="questionSearch" placeholder="请搜索关键词...支持标题/选项/分类" style="width:100%;padding:8px 12px;margin-bottom:12px;border:1px solid #e2e8f0;border-radius:6px;outline:none;font-size:14px;box-sizing:border-box;">
         <!-- 修复：移除居中内联样式，实现与搜索框两端对齐 -->
@@ -2228,7 +2374,7 @@ function loadFromLocalStorage() {
     wrongQuestions = parsed.wrongQuestions || [];
     currentCategory = parsed.currentCategory || "all";
     currentPracticeIndex = parsed.currentPracticeIndex || 0;
-    shuffleOptions = parsed.shuffleOptions || false;
+    shuffleOptions = parsed.shuffleOptions !== undefined ? parsed.shuffleOptions : true;
     isRandomMode = parsed.isRandomMode || false; // 读出随机模式状态
     // 同步随机刷题按钮激活状态
 var randomBtn = document.getElementById('randomBtn');
@@ -2556,7 +2702,8 @@ function showWrongQuestions() {
 	if(currentListType === "wrong") {
 	    resetFilterButtons(); // 统一重置
 	    initQuestionList();
-	    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+	    var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
+		document.getElementById('listTitle').textContent = cateName + "列表（共" + getCateBank().length + "题）";
 	    showToast("已返回全部题目");
 	    return;
 	}
@@ -2612,7 +2759,8 @@ function showFavorites() {
 	if(currentListType === "favorite") {
 	    resetFilterButtons(); // 统一重置
 	    initQuestionList();
-	    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+	    var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
+		document.getElementById('listTitle').textContent = cateName + "列表（共" + getCateBank().length + "题）";
 	    showToast("已返回全部题目");
 	    return;
 	}
@@ -2696,6 +2844,17 @@ function initApp() {
         
         // 加载本地存储数据
         loadFromLocalStorage();
+        
+        // 同步打乱选项按钮的初始激活状态
+        var shuffleBtn = document.getElementById('shuffleBtn');
+        if (shuffleOptions) {
+            addClass(shuffleBtn, 'active');
+        } else {
+            removeClass(shuffleBtn, 'active');
+        }
+        
+        // ========== 新增：夜间模式首次引导 ==========
+        checkNightTip();
         
         // 绑定倒计时按钮事件
         countdownBtn.addEventListener('click', toggleCountdown);
@@ -2790,7 +2949,7 @@ function initApp() {
                         if(countdownRunning){
                             toggleCountdown();
                         }
-                        showToast("已载入上次考题");
+                        showToast("请开始考试！");
                     } else {
                         resetCountdown();
                         getNewExamBatch();
@@ -3038,7 +3197,8 @@ function initApp() {
 		document.getElementById('allList').addEventListener('click', function(){
 		    resetFilterButtons(); // 统一重置两个按钮状态
 		    initQuestionList();
-		    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+			var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
+		    document.getElementById('listTitle').textContent = cateName + "题目列表（共" + getCateBank().length + "题）";
 		    updateQuestionGridMark();
 		    listModal.style.display="flex";
 		});
@@ -3309,6 +3469,37 @@ document.addEventListener('keydown', function(e) {
         document.getElementById('loading').style.display = 'none';
     }
 }
+
+// 判断当前是否为夜间时段（19:00 ~ 次日05:00）
+function isNightTime() {
+  const currentHour = new Date().getHours();
+  return currentHour >= 19 || currentHour < 5;
+}
+
+// 检查并弹出夜间模式引导弹窗
+function checkNightTip() {
+  // 已弹出过 / 非夜间时段 → 直接跳过
+  const hasShownTip = localStorage.getItem('nightModeTipShown') === 'true';
+  if (hasShownTip || !isNightTime()) return;
+
+  const modal = document.getElementById('nightTipModal');
+  modal.style.display = 'block';
+
+  // 「不切换」按钮
+  document.getElementById('cancelNightTip').onclick = function () {
+    modal.style.display = 'none';
+    localStorage.setItem('nightModeTipShown', 'true');
+  };
+
+  // 「切换」按钮：直接触发原有夜间模式按钮的点击，复用全部逻辑
+  document.getElementById('confirmNightTip').onclick = function () {
+    modal.style.display = 'none';
+    localStorage.setItem('nightModeTipShown', 'true');
+    // 核心：调用你页面里已有的夜间模式开关，自动完成加类、存本地、改按钮文字
+    document.getElementById('nightModeBtn').click();
+  };
+}
+
 // 通用选项内容提取函数：自动忽略A./B.后的任意数量空格
 function getOptionContent(optionText) {
     // 正则匹配：开头A-D+点+任意数量空格，全部替换为空
@@ -3738,7 +3929,8 @@ function initQuestionList(keyword){
         for(var i=0; i<bank.length; i++){
             filteredBank.push({index:i, data:bank[i]});
         }
-        document.getElementById('listTitle').textContent = `全部题目列表（共${bank.length}题）`;
+        var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
+		document.getElementById('listTitle').textContent = `${cateName}列表（共${bank.length}题）`;
         
         for(var j=0; j<filteredBank.length; j++){
             var item = filteredBank[j];
@@ -4171,6 +4363,17 @@ function closeSoft(){document.getElementById('softModal').style.display='none';}
 <div class="footer-info">
     作者：数控阿宇 &nbsp; 抖音号：<a href="https://v.douyin.com/7jnbDiZ4w0w/" target="_blank">83897603411</a><br>
     数控知识库学习系统 v3.0
+</div>
+<!-- 夜间模式首次引导弹窗 -->
+<div id="nightTipModal" class="tip-modal" style="display: none;">
+  <div class="tip-modal-mask"></div>
+  <div class="tip-modal-box">
+    <p class="tip-modal-text">亲，当前为夜间时间，建议开启夜间模式更护眼，需要开启吗？</p>
+    <div class="tip-modal-btns">
+      <button id="cancelNightTip" class="btn btn-default">保持当前</button>
+      <button id="confirmNightTip" class="btn btn-primary">立即开启</button>
+    </div>
+  </div>
 </div>
 </body>
 </html>
