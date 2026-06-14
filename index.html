@@ -437,9 +437,16 @@ h1{text-align:center;color:#2d3748;margin-bottom:20px;font-size:22px;}
     font-size:14px;
     transition:all 0.2s;
 }
-.func-btn:hover{
-    background:#4299e1;
-    color:white;
+/* 清除按钮聚焦默认轮廓，避免额外高亮残留 */
+.func-btn:focus {
+    outline: none;
+}
+/* 仅支持鼠标悬停的设备才显示hover效果，触屏设备不生效 */
+@media (hover: hover) {
+    .func-btn:hover{
+        background:#4299e1;
+        color:white;
+    }
 }
 .func-btn.active {
     background:#4299e1;
@@ -634,6 +641,10 @@ h1{text-align:center;color:#2d3748;margin-bottom:20px;font-size:22px;}
         font-size:12px !important;
     }
 }
+/* 夜间搜索选项词样式 */
+body.dark-mode .search-result-item .options {
+    color: #cbd5e0 !important;
+}
 /* 搜索关键词高亮样式 */
 .search-highlight {
     background-color: #ffeb3b; /* 亮黄色背景，最醒目 */
@@ -641,6 +652,12 @@ h1{text-align:center;color:#2d3748;margin-bottom:20px;font-size:22px;}
     padding: 1px 2px;
     border-radius: 2px;
     font-weight: 500;
+}
+/* 消除移动端按钮点击高亮残留 */
+.func-btn {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
 }
 </style>
 <style>
@@ -769,10 +786,12 @@ body.dark-mode .func-btn.active{
     color: white !important;
     border-color: var(--dark-accent) !important;
 }
-body.dark-mode .func-btn:hover{
-    background: var(--dark-accent) !important;
-    color: white !important;
-    border-color: var(--dark-accent) !important;
+@media (hover: hover) {
+    body.dark-mode .func-btn:hover{
+        background: var(--dark-accent) !important;
+        color: white !important;
+        border-color: var(--dark-accent) !important;
+    }
 }
 body.dark-mode .question-grid button{
     background: var(--dark-bg-3) !important;
@@ -1098,6 +1117,24 @@ body.dark-mode #examBtns button svg * {
     stroke: inherit !important;
     stroke-width: inherit !important;
     opacity: inherit !important;
+}
+/* 正常模式样式 */
+.result-encouragement {
+    color: #666;
+    font-size: 14px;
+}
+.result-close-tip {
+    font-size: 12px;
+    color: #999;
+    margin-top: 8px;
+}
+
+/* 夜间模式适配 */
+body.dark-mode .result-encouragement {
+    color: #a0aec0;
+}
+body.dark-mode .result-close-tip {
+    color: #718096;
 }
 </style>
 
@@ -1541,12 +1578,16 @@ window.onerror = function(message, source, lineno, colno, error) {
     document.getElementById('loading').style.display = 'none';
     return true;
 };
-// 全局提示定时器
-var toastTimer = null;
-var longToastActive = false;
-var currentToast = null;
-// 自动消失提示函数（2秒）- 中央悬浮显示
-function showToast(text) {
+	// 三处判分统一文案（后续改措辞仅需修改此处）
+	var CORRECT_TIP = '✅ 回答正确，答案：';
+	var WRONG_TIP = '❌ 回答错误，正确答案：';
+	
+	// 全局提示定时器
+	var toastTimer = null;
+	var longToastActive = false;
+	var currentToast = null;
+	// 自动消失提示函数（2秒）- 中央悬浮显示
+	function showToast(text) {
     if(longToastActive) return; // 长提示显示时不显示短提示
     
     // 清除之前的提示
@@ -1666,7 +1707,7 @@ var fullBank = [
 {"q":"程序中Q代码含义","opt":["A.进给","B.每次切深","C.补偿","D.转速"],"ans":"B","tip":"Q在深孔钻、镗孔循环中表示每次进给深度，用于分段切削。","cate":"程序代码"},
 {"q":"G52局部坐标系指令属于","opt":["A.固定循环","B.补偿","C.非模态","D.模态"],"ans":"C","tip":"G52 本身是非模态指令（00 组），但偏移效果会持续存在，直到执行  G52 X0 Y0 Z0  或复位。","cate":"程序代码"},
 {"q":"G68坐标旋转指令","opt":["A.圆弧","B.非模态","C.暂停","D.模态"],"ans":"D","tip":"G68开启坐标旋转，旋转后所有路径按角度旋转，适合均布孔、轮廓。","cate":"程序代码"},
-{"q":"取消坐标旋转指令","opt":["A.G69","B.G40","C.G80","D.G49"],"ans":"A","tip":"G69取消坐标旋转G68，恢复正常坐标系。","cate":"程序代码"},
+{"q":"取消坐标旋转指令","opt":["A.G69","B.G40","C.G80","D.G49"],"ans":"A","tip":"G69取消坐标旋转，G68恢复正常坐标系。","cate":"程序代码"},
 {"q":"G51.1开启镜像功能，取消用","opt":["A.G40","B.G80","C.G50.1","D.G49"],"ans":"C","tip":"G51.1开启镜像，G50.1取消镜像，常用于对称零件加工。","cate":"程序代码"},
 {"q":"G73高速深孔啄钻循环","opt":["A.固定循环","B.模态","C.补偿","D.坐标"],"ans":"A","tip":"G73高速深孔钻，间断进给快速排屑，适合深孔、硬质材料。","cate":"程序代码"},
 {"q":"G74左旋攻丝循环","opt":["A.模态","B.固定循环","C.补偿","D.坐标"],"ans":"B","tip":"G74左旋攻丝循环，主轴反转攻丝→到位→正退回刀。","cate":"程序代码"},
@@ -2124,6 +2165,7 @@ var mode = "recite"; // 默认背题模式
 var examAnswers = {}; // 新增：存储考试模式的答题记录（key:题目索引, value:选中的选项值）
 var reciteIndex = 0; // 背题模式独立题目索引
 var practiceIndex = 0; // 答题模式独立题目索引
+var isRandomMode = false; // 持续随机刷题模式开关
 var currentExamList = [];
 var wrongList = [];
 var currentPracticeIndex = 0;
@@ -2160,6 +2202,7 @@ function saveToLocalStorage() {
 		    currentCategory: currentCategory,
 		    currentPracticeIndex: currentPracticeIndex,
 		    shuffleOptions: shuffleOptions,
+			isRandomMode: isRandomMode,  // 保存随机模式状态
 		    reciteIndex: reciteIndex,
 		    practiceIndex: practiceIndex,
 		    currentMode: mode,
@@ -2186,6 +2229,12 @@ function loadFromLocalStorage() {
     currentCategory = parsed.currentCategory || "all";
     currentPracticeIndex = parsed.currentPracticeIndex || 0;
     shuffleOptions = parsed.shuffleOptions || false;
+    isRandomMode = parsed.isRandomMode || false; // 读出随机模式状态
+    // 同步随机刷题按钮激活状态
+var randomBtn = document.getElementById('randomBtn');
+if (isRandomMode && randomBtn) {
+    addClass(randomBtn, 'active');
+}
     // 加载各模式独立索引
     reciteIndex = parsed.reciteIndex || 0;
     practiceIndex = parsed.practiceIndex || 0;
@@ -2218,7 +2267,7 @@ function loadFromLocalStorage() {
     const shuffleBtn = document.getElementById('shuffleBtn');
     if (shuffleOptions) {
         addClass(shuffleBtn, 'active');
-        shuffleBtn.textContent = "已开打乱";
+        shuffleBtn.textContent = "打乱选项";
     }
         }
     } catch(e) {
@@ -2229,17 +2278,21 @@ function loadFromLocalStorage() {
 function updateStats() {
     var bank = getCateBank();
     var total = bank.length;
-    var answered = Object.keys(practiceAnswers).length;
-    var unanswered = total - answered;
-    
-    // 计算错题数
+    var answered = 0;
     var wrong = 0;
-    for(var key in practiceJudge) {
-        if(practiceJudge[key] === false) {
-            wrong++;
+    
+    // 只统计当前分类的答题记录
+    for(var i=0; i<bank.length; i++){
+        var uniqueKey = currentCategory + '_' + i;
+        if(practiceAnswers[uniqueKey] !== undefined){
+            answered++;
+            if(practiceJudge[uniqueKey] === false){
+                wrong++;
+            }
         }
     }
     
+    var unanswered = total - answered;
     // 计算正确率
     var accuracy = answered > 0 ? ((answered - wrong) / answered * 100).toFixed(1) : 0;
     
@@ -2314,6 +2367,17 @@ function resetCountdown() {
 function copyArray(arr) {
     return arr.slice(0);
 }
+// 生成不重复的随机题目索引
+function getRandomNextIndex() {
+    var bank = getCateBank();
+    if (bank.length <= 1) return 0;
+    var newIdx;
+    // 保证新题和当前题不重复
+    do {
+        newIdx = Math.floor(Math.random() * bank.length);
+    } while (newIdx === currentPracticeIndex);
+    return newIdx;
+}
 function getCateBank(){
     if(currentCategory === "all") return copyArray(fullBank);
     var result = [];
@@ -2324,26 +2388,34 @@ function getCateBank(){
     }
     return result;
 }
-// 兼容的类名操作函数
+// 兼容的类名操作函数（增强版，彻底解决类名删不掉的问题）
 function addClass(elem, className) {
-    if (!elem.classList) {
-        elem.className += ' ' + className;
-    } else {
+    if (!elem) return;
+    if (elem.classList) {
         elem.classList.add(className);
+    } else {
+        // 兜底：先去重，再追加
+        if (!hasClass(elem, className)) {
+            elem.className = elem.className.trim() + ' ' + className;
+        }
     }
 }
 function removeClass(elem, className) {
-    if (!elem.classList) {
-        elem.className = elem.className.replace(new RegExp('(^|\\b)' + className.split(' ').join('|') + '(\\b|$)', 'gi'), ' ');
-    } else {
+    if (!elem) return;
+    if (elem.classList) {
         elem.classList.remove(className);
+    } else {
+        // 兜底：精准替换+去多余空格
+        var reg = new RegExp('(\\s|^)' + className + '(\\s|$)', 'g');
+        elem.className = elem.className.replace(reg, ' ').replace(/\s+/g, ' ').trim();
     }
 }
 function hasClass(elem, className) {
-    if (!elem.classList) {
-        return new RegExp('(^| )' + className + '( |$)', 'gi').test(elem.className);
-    } else {
+    if (!elem) return false;
+    if (elem.classList) {
         return elem.classList.contains(className);
+    } else {
+        return new RegExp('(\\s|^)' + className + '(\\s|$)').test(elem.className);
     }
 }
 // 滑动事件处理函数
@@ -2370,25 +2442,31 @@ function handleSwipe() {
     var diffX = touchEndX - touchStartX;
     var diffY = touchEndY - touchStartY;
     
-    // 只处理水平滑动，且滑动距离大于50px，垂直滑动小于30px
-    if(Math.abs(diffX) > 50 && Math.abs(diffY) < 30) {
-        if(diffX > 0) {
-            // 右滑：上一题
-            if(currentPracticeIndex > 0){
-                currentPracticeIndex--;
-                // 同步当前模式的独立索引
-				if(mode === "recite") reciteIndex = currentPracticeIndex;
-				if(mode === "practice") practiceIndex = currentPracticeIndex;
-                renderPractice();
-            }
+    // 只处理水平滑动，且滑动距离大于10px，垂直滑动小于30px
+    if(Math.abs(diffX) > 10 && Math.abs(diffY) < 30) {
+        if (isRandomMode) {
+            // 随机模式下，左右滑都随机抽新题
+            currentPracticeIndex = getRandomNextIndex();
+            if(mode === "recite") reciteIndex = currentPracticeIndex;
+            if(mode === "practice") practiceIndex = currentPracticeIndex;
+            renderPractice();
         } else {
-            // 左滑：下一题
-            if(currentPracticeIndex < bank.length - 1){
-                currentPracticeIndex++;
-                // 同步当前模式的独立索引
-				if(mode === "recite") reciteIndex = currentPracticeIndex;
-				if(mode === "practice") practiceIndex = currentPracticeIndex;
-                renderPractice();
+            if(diffX > 0) {
+                // 右滑：上一题
+                if(currentPracticeIndex > 0){
+                    currentPracticeIndex--;
+                    if(mode === "recite") reciteIndex = currentPracticeIndex;
+                    if(mode === "practice") practiceIndex = currentPracticeIndex;
+                    renderPractice();
+                }
+            } else {
+                // 左滑：下一题
+                if(currentPracticeIndex < bank.length - 1){
+                    currentPracticeIndex++;
+                    if(mode === "recite") reciteIndex = currentPracticeIndex;
+                    if(mode === "practice") practiceIndex = currentPracticeIndex;
+                    renderPractice();
+                }
             }
         }
     }
@@ -2425,42 +2503,84 @@ function checkFavoriteStatus() {
         removeClass(favoriteBtn, 'active');
     }
 }
-// 随机刷题功能
-function randomPractice() {
+// 随机刷题模式开关
+function toggleRandomMode() {
     var bank = getCateBank();
-    if(bank.length === 0) {
+    if (bank.length === 0) {
         showToast("当前分类没有题目");
         return;
     }
     
-    var randomIndex = Math.floor(Math.random() * bank.length);
-    currentPracticeIndex = randomIndex;
-    // 同步当前模式的独立索引
-	if(mode === "recite") reciteIndex = currentPracticeIndex;
-	if(mode === "practice") practiceIndex = currentPracticeIndex;
-    currentListType = "random";
-    renderPractice();
-    listModal.style.display = "none";
-    showToast("随机抽取第" + (randomIndex + 1) + "题");
+    isRandomMode = !isRandomMode;
+    var btn = document.getElementById('randomBtn');
+    
+    if (isRandomMode) {
+        addClass(btn, 'active');
+        // 立即随机跳转一题
+        currentPracticeIndex = getRandomNextIndex();
+        if(mode === "recite") reciteIndex = currentPracticeIndex;
+        if(mode === "practice") practiceIndex = currentPracticeIndex;
+        renderPractice();
+        listModal.style.display = "none";
+        showToast("✅ 已开启随机刷题");
+    } else {
+        removeClass(btn, 'active');
+        listModal.style.display = "none";
+        showToast("❌ 已关闭随机刷题");
+    }
+    
+    saveToLocalStorage();
+}
+// 统一重置两个筛选按钮为默认灰色（所有回到全部题目的场景都调用）
+function resetFilterButtons() {
+    var wrongBtn = document.getElementById('wrongBtn');
+    var favoriteBtn = document.getElementById('favoriteBtn');
+    removeClass(wrongBtn, 'active');
+    removeClass(favoriteBtn, 'active');
+    // 新增：强制按钮失焦，清除点击后的聚焦状态残留
+    wrongBtn.blur();
+    favoriteBtn.blur();
+    // 双重保险：强制清除内联样式残留
+    wrongBtn.style.backgroundColor = '';
+    wrongBtn.style.color = '';
+    favoriteBtn.style.backgroundColor = '';
+    favoriteBtn.style.color = '';
+    currentListType = "all";
 }
 // 查看错题功能
 function showWrongQuestions() {
+    var wrongBtn = document.getElementById('wrongBtn');
+    var favoriteBtn = document.getElementById('favoriteBtn'); // 新增：获取收藏按钮用于互斥
+    
+    // 切换逻辑：如果当前已经是错题视图，再点则恢复全部题目
+	if(currentListType === "wrong") {
+	    resetFilterButtons(); // 统一重置
+	    initQuestionList();
+	    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+	    showToast("已返回全部题目");
+	    return;
+	}
+    
     var bank = getCateBank();
     var wrongBank = [];
     
-    // 筛选当前分类下的错题
+    // 筛选当前分类下的错题（带分类前缀匹配）
     for(var i=0; i<bank.length; i++) {
-        if(practiceJudge[i] === false) {
+        var uniqueKey = currentCategory + '_' + i;
+        if(practiceJudge[uniqueKey] === false) {
             wrongBank.push(i);
         }
     }
-    
     if(wrongBank.length === 0) {
         showToast("当前分类没有错题");
         return;
     }
     
     currentListType = "wrong";
+    // 互斥：先清除收藏按钮的激活状态
+    removeClass(favoriteBtn, 'active');
+    addClass(wrongBtn, 'active'); // 按钮激活为蓝色
+    
     // 显示错题列表
     questionGrid.innerHTML = "";
     document.getElementById('listTitle').textContent = "错题列表（共" + wrongBank.length + "题）";
@@ -2482,8 +2602,21 @@ function showWrongQuestions() {
         questionGrid.appendChild(btn);
     }
 }
+
 // 查看收藏功能
 function showFavorites() {
+    var favoriteBtn = document.getElementById('favoriteBtn');
+    var wrongBtn = document.getElementById('wrongBtn'); // 新增：获取错题按钮用于互斥
+    
+    // 切换逻辑：如果当前已经是收藏视图，再点则恢复全部题目
+	if(currentListType === "favorite") {
+	    resetFilterButtons(); // 统一重置
+	    initQuestionList();
+	    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+	    showToast("已返回全部题目");
+	    return;
+	}
+    
     var bank = getCateBank();
     var favoriteBank = [];
     
@@ -2500,6 +2633,10 @@ function showFavorites() {
     }
     
     currentListType = "favorite";
+    // 互斥：先清除错题按钮的激活状态
+    removeClass(wrongBtn, 'active');
+    addClass(favoriteBtn, 'active'); // 按钮激活为蓝色
+    
     // 显示收藏列表
     questionGrid.innerHTML = "";
     document.getElementById('listTitle').textContent = "我的收藏（共" + favoriteBank.length + "题）";
@@ -2571,9 +2708,10 @@ function initApp() {
         // 绑定分类选择事件
         categorySelect.addEventListener('change', function(){
             currentCategory = this.value;
-            practiceAnswers = {};
-            practiceJudge = {};
             currentPracticeIndex = 0;
+            isRandomMode = false;
+            // 切换分类自动关闭随机刷题
+			removeClass(document.getElementById('randomBtn'), 'active');
             // 同步当前模式的独立索引
 			if(mode === "recite") reciteIndex = currentPracticeIndex;
 			if(mode === "practice") practiceIndex = currentPracticeIndex;
@@ -2652,7 +2790,7 @@ function initApp() {
                         if(countdownRunning){
                             toggleCountdown();
                         }
-                        showToast("已恢复上次考试进度");
+                        showToast("已载入上次考题");
                     } else {
                         resetCountdown();
                         getNewExamBatch();
@@ -2714,38 +2852,63 @@ function initApp() {
 		    // ========== 校验结束，执行原有交卷逻辑 ==========
 		    
 		    showToast("正在提交试卷...");
-		    var right=0;
-		    wrongList=[];
-		    for(var i=0; i<questions.length; i++){
-		        var dom = questions[i];
-		        var sel=dom.querySelector('input:checked');
-		        var ans=currentExamList[i]._tempAns || currentExamList[i].ans;
-		        var tip=dom.querySelector('.analysis');
-		        removeClass(dom, 'correct');
-		        removeClass(dom, 'wrong');
-		        tip.style.display='block';
-		        
-		        // ========== 新增：考试模式提交后显示文字提示条 ==========
-		        // 先移除旧的提示条，避免重复
-		        var oldResult = dom.querySelector('.answer-result');
-		        if(oldResult) oldResult.remove();
-		        
-		        var resultDiv = document.createElement('div');
-		        if(sel&&sel.value===ans){	
-		            right++;
-		            addClass(dom, 'correct');
-		            resultDiv.className = 'answer-result correct';
-		            resultDiv.innerHTML = '✅ 回答正确';
-		        }else{
-		            addClass(dom, 'wrong');
-		            wrongList.push(currentExamList[i]);
-		            resultDiv.className = 'answer-result wrong';
-		            resultDiv.innerHTML = `❌ 回答错误，正确答案：${ans}`;
-		        }
-		        // 插入到解析前面，和答题模式位置完全一致
-		        dom.insertBefore(resultDiv, tip);
-		        // ========== 新增结束 ==========
-		    }
+			var right=0;
+			wrongList=[];
+			for(var i=0; i<questions.length; i++){
+			    var dom = questions[i];
+			    var sel=dom.querySelector('input:checked');
+			    var item = currentExamList[i];
+			    
+			    // 1. 提取原始正确答案的纯内容
+			    var correctContent = "";
+			    for(var m=0; m<item.opt.length; m++){
+			        if(item.opt[m].charAt(0) === item.ans){
+			            correctContent = getOptionContent(item.opt[m]);
+			            break;
+			        }
+			    }
+			    
+			    // 2. 提取用户选中选项的纯内容
+			    var selectContent = "";
+			    if(sel){
+			        selectContent = getOptionContent(sel.parentElement.textContent.trim());
+			    }
+			    
+			    // 3. 找到当前页面正确答案对应的字母（用于提示显示）
+			    var correctLetter = "";
+			    var allOptions = dom.querySelectorAll('.option');
+			    for(var n=0; n<allOptions.length; n++){
+			        var optText = getOptionContent(allOptions[n].textContent.trim());
+			        if(optText === correctContent){
+			            correctLetter = allOptions[n].querySelector('input').value;
+			            break;
+			        }
+			    }
+			    
+			    var tip=dom.querySelector('.analysis');
+			    removeClass(dom, 'correct');
+			    removeClass(dom, 'wrong');
+			    tip.style.display='block';
+			    
+			    // 先移除旧的提示条，避免重复
+			    var oldResult = dom.querySelector('.answer-result');
+			    if(oldResult) oldResult.remove();
+			    
+			    var resultDiv = document.createElement('div');
+			    // 按内容比对判断对错，彻底不受打乱顺序影响
+				if(sel && selectContent === correctContent){	
+				    right++;
+				    addClass(dom, 'correct');
+				    resultDiv.className = 'answer-result correct';
+				    resultDiv.innerHTML = CORRECT_TIP + correctLetter;
+				}else{
+				    addClass(dom, 'wrong');
+				    wrongList.push(currentExamList[i]);
+				    resultDiv.className = 'answer-result wrong';
+				    resultDiv.innerHTML = WRONG_TIP + correctLetter;
+				}
+			    dom.insertBefore(resultDiv, tip);
+			}
 		    var score = (right/currentExamList.length*100).toFixed(1);
 		    var wrongCount = wrongList.length;
 		    var correctCount = right;
@@ -2763,18 +2926,18 @@ function initApp() {
 		    }
 		    
 		    // 长显示结果
-		    var resultHtml = '<div style="font-size:18px;margin-bottom:8px;">考试成绩：<span style="color:#4299e1;font-size:24px;">' + score + ' 分</span></div>';
-		    resultHtml += '<div style="margin-bottom:12px;">答对：' + correctCount + ' 题 | 答错：' + wrongCount + ' 题</div>';
-		    resultHtml += '<div style="color:#666;font-size:14px;">' + encouragement + '</div>';
-		    resultHtml += '<div style="font-size:12px;color:#999;margin-top:8px;">任意点击关闭</div>';
+			var resultHtml = '<div style="font-size:18px;margin-bottom:8px;">考试成绩：<span style="color:#4299e1;font-size:24px;">' + score + ' 分</span></div>';
+			resultHtml += '<div style="margin-bottom:12px;">答对：' + correctCount + ' 题 | 答错：' + wrongCount + ' 题</div>';
+			resultHtml += '<div class="result-encouragement">' + encouragement + '</div>';
+			resultHtml += '<div class="result-close-tip">任意点击关闭</div>';
+
 		    
 		    showLongToast(resultHtml);
 		    
 			// 停止倒计时
 			resetCountdown();
-			examSubmitted = true; // 新增：标记考试已提交
-			// 提交后清空考试答题记录
-			examAnswers = {};
+			examSubmitted = true; // 标记考试已提交
+			// 【修复】移除清空答题记录代码，保留记录用于下次恢复
 			saveToLocalStorage();
 		});
 
@@ -2808,6 +2971,11 @@ function initApp() {
 		    examSubmitted = false; // 新增：重置后恢复未提交状态
 		    showToast("已清空所有答案，并重新计时");
 		    wrongList = []; // 重置时清空错题列表
+		    // ========== 新增修复：同步清空本地存储答题记录 ==========
+		    examAnswers = {};
+		    examSubmitted = false;
+		    saveToLocalStorage();
+		    // ========== 修复结束 ==========
 		});
 
         document.getElementById('redo').addEventListener('click', function(){
@@ -2831,37 +2999,49 @@ function initApp() {
         });
         
         // 绑定练习模式按钮事件
-        document.getElementById('prev').addEventListener('click', function(){
-            var bank = getCateBank();
-            if(currentPracticeIndex>0){
-                currentPracticeIndex--;
-                // 同步当前模式的独立索引
-				if(mode === "recite") reciteIndex = currentPracticeIndex;
-				if(mode === "practice") practiceIndex = currentPracticeIndex;
-                renderPractice();
-            }
-        });
+		document.getElementById('prev').addEventListener('click', function(){
+		    var bank = getCateBank();
+		    if (isRandomMode) {
+		        currentPracticeIndex = getRandomNextIndex();
+		    } else {
+		        if(currentPracticeIndex > 0){
+		            currentPracticeIndex--;
+		        } else {
+		            showToast("已经是第一题了");
+		            return;
+		        }
+		    }
+		    if(mode === "recite") reciteIndex = currentPracticeIndex;
+		    if(mode === "practice") practiceIndex = currentPracticeIndex;
+		    renderPractice();
+		});
         
-        document.getElementById('next').addEventListener('click', function(){
-            var bank = getCateBank();
-            if(currentPracticeIndex < bank.length -1){
-                currentPracticeIndex++;
-                // 同步当前模式的独立索引
-				if(mode === "recite") reciteIndex = currentPracticeIndex;
-				if(mode === "practice") practiceIndex = currentPracticeIndex;
-                renderPractice();
-            }
-        });
-        
+		document.getElementById('next').addEventListener('click', function(){
+		    var bank = getCateBank();
+		    if (isRandomMode) {
+		        currentPracticeIndex = getRandomNextIndex();
+		    } else {
+		        if(currentPracticeIndex < bank.length - 1){
+		            currentPracticeIndex++;
+		        } else {
+		            showToast("已经是最后一题了");
+		            return;
+		        }
+		    }
+		    if(mode === "recite") reciteIndex = currentPracticeIndex;
+		    if(mode === "practice") practiceIndex = currentPracticeIndex;
+		    renderPractice();
+		});
+
         document.getElementById('clearPractice').addEventListener('click', clearPracticeAll);
         
-        document.getElementById('allList').addEventListener('click', function(){
-            currentListType = "all";
-            initQuestionList();
-            document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
-            updateQuestionGridMark();
-            listModal.style.display="flex";
-        });
+		document.getElementById('allList').addEventListener('click', function(){
+		    resetFilterButtons(); // 统一重置两个按钮状态
+		    initQuestionList();
+		    document.getElementById('listTitle').textContent = "全部题目列表（共" + getCateBank().length + "题）";
+		    updateQuestionGridMark();
+		    listModal.style.display="flex";
+		});
         
         // 绑定收藏按钮事件
         document.getElementById('favorite').addEventListener('click', toggleFavorite);
@@ -2878,7 +3058,7 @@ document.getElementById('allListExam').addEventListener('click', function(){
 });
 
         // 绑定随机刷题、错题、收藏按钮事件
-        document.getElementById('randomBtn').addEventListener('click', randomPractice);
+	    document.getElementById('randomBtn').addEventListener('click', toggleRandomMode);
         document.getElementById('wrongBtn').addEventListener('click', showWrongQuestions);
         document.getElementById('favoriteBtn').addEventListener('click', showFavorites);
         // 打乱选项按钮点击事件
@@ -2886,12 +3066,12 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
     shuffleOptions = !shuffleOptions;
     if (shuffleOptions) {
         addClass(this, 'active');
-        this.textContent = "已开打乱";
-        showToast("✅ 已开启选项随机");
+        this.textContent = "打乱选项";
+        showToast("✅ 已开启打乱选项");
     } else {
         removeClass(this, 'active');
         this.textContent = "打乱选项";
-        showToast("❌ 已关闭选项随机");
+        showToast("❌ 已关闭打乱选项");
     }
     saveToLocalStorage();
     
@@ -2922,7 +3102,6 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
         initKnowledgeToggle();
         
         // ========== 修复：根据上次保存的模式自动初始化对应UI ==========
-        // ========== 修复：根据上次保存的模式自动初始化对应UI ==========
         if(mode === "exam"){
             // 考试模式UI
             examBtns.style.display = "flex";
@@ -2950,7 +3129,7 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
                 if(countdownRunning){
                     toggleCountdown();
                 }
-                showToast("✅ 已恢复上次考试题目和答题记录");
+                showToast("✅ 已恢复上次考题");
         }
         }else{
             // 背题/答题模式UI
@@ -2986,29 +3165,39 @@ document.addEventListener('keydown', function(e) {
     
     var bank = getCateBank();
     
-    // 左箭头键 → 上一题
-    if(e.key === 'ArrowLeft' || e.keyCode === 37) {
-        if(currentPracticeIndex > 0) {
-            currentPracticeIndex--;
-            // 同步当前模式的独立索引
-			if(mode === "recite") reciteIndex = currentPracticeIndex;
-			if(mode === "practice") practiceIndex = currentPracticeIndex;
-            renderPractice();
-        }
-        e.preventDefault(); // 阻止页面滚动
-    }
-    
-    // 右箭头键 → 下一题
-    if(e.key === 'ArrowRight' || e.keyCode === 39) {
-        if(currentPracticeIndex < bank.length - 1) {
-            currentPracticeIndex++;
-            // 同步当前模式的独立索引
-			if(mode === "recite") reciteIndex = currentPracticeIndex;
-			if(mode === "practice") practiceIndex = currentPracticeIndex;
-            renderPractice();
-        }
-        e.preventDefault(); // 阻止页面滚动
-    }
+	// 左箭头键 → 上一题
+	if(e.key === 'ArrowLeft' || e.keyCode === 37) {
+	    if (isRandomMode) {
+	        currentPracticeIndex = getRandomNextIndex();
+	    } else {
+	        if(currentPracticeIndex > 0) {
+	            currentPracticeIndex--;
+	        } else {
+	            return;
+	        }
+	    }
+	    if(mode === "recite") reciteIndex = currentPracticeIndex;
+	    if(mode === "practice") practiceIndex = currentPracticeIndex;
+	    renderPractice();
+	    e.preventDefault();
+	}
+	
+	// 右箭头键 → 下一题
+	if(e.key === 'ArrowRight' || e.keyCode === 39) {
+	    if (isRandomMode) {
+	        currentPracticeIndex = getRandomNextIndex();
+	    } else {
+	        if(currentPracticeIndex < bank.length - 1) {
+	            currentPracticeIndex++;
+	        } else {
+	            return;
+	        }
+	    }
+	    if(mode === "recite") reciteIndex = currentPracticeIndex;
+	    if(mode === "practice") practiceIndex = currentPracticeIndex;
+	    renderPractice();
+	    e.preventDefault();
+	}
 });
         // ========== 新增：题目搜索功能 ==========
         var searchInput = document.getElementById('questionSearch');
@@ -3150,89 +3339,119 @@ function renderExam(){
         var item = currentExamList[i];
         var div=document.createElement('div');
         div.className='question';
-        div.innerHTML='<div class="q-title">'+(i+1)+'. '+item.q+'</div>';
-        // ========== 新：保持A/B/C/D顺序，只打乱选项内容 ==========
-var optionsToRender = copyArray(item.opt);
-var correctAnswerContent = "";
-// 先找到原始正确答案对应的纯内容
-for(var k=0; k<item.opt.length; k++){
-    if(item.opt[k].charAt(0) === item.ans){
-        correctAnswerContent = getOptionContent(item.opt[k]); // 自动过滤前后缀
-        break;
-    }
-}
+        div.innerHTML='<div class="q-title">'+(i+1)+'. '+item.q+'【'+item.cate+'】</div>';
 
-if(shuffleOptions) {
-    // 1. 提取所有选项的纯内容
-    var contents = [];
-    for(var k=0; k<item.opt.length; k++){
-        contents.push(item.opt[k].substring(2));
-    }
-    // 2. 只打乱纯内容
-    contents = shuffle(contents);
-    // 3. 重新按A/B/C/D顺序加前缀
-    optionsToRender = [];
-    var letters = ['A','B','C','D'];
-    for(var k=0; k<contents.length; k++){
-        optionsToRender.push(letters[k] + '.' + contents[k]);
-        // 4. 找到正确答案现在对应的字母
-        if(contents[k] === correctAnswerContent){
-            // 临时存储当前题的正确答案（不修改原始题库）
-            item._tempAns = letters[k];
+        // 生成渲染用选项：字母顺序固定，仅打乱内容
+        var optionsToRender = copyArray(item.opt);
+        var correctContent = "";
+        // 提取原始正确答案纯内容
+        for(var k=0; k<item.opt.length; k++){
+            if(item.opt[k].charAt(0) === item.ans){
+                correctContent = getOptionContent(item.opt[k]);
+                break;
+            }
         }
-    }
-} else {
-    // 不打乱时，临时答案等于原始答案
-    item._tempAns = item.ans;
-}
-// 统一存正确答案的纯内容，供判断对错用
-item._correctContent = correctAnswerContent;
-// ========== 结束新逻辑 ==========
-        for(var j=0; j<item.opt.length; j++){
+
+        if(shuffleOptions) {
+            var contents = [];
+            for(var k=0; k<item.opt.length; k++){
+                contents.push(getOptionContent(item.opt[k]));
+            }
+            contents = shuffle(contents);
+            optionsToRender = [];
+            var letters = ['A','B','C','D'];
+            for(var k=0; k<contents.length; k++){
+                optionsToRender.push(letters[k] + '.' + contents[k]);
+            }
+        }
+
+        // 渲染选项
+        for(var j=0; j<optionsToRender.length; j++){
             var o = optionsToRender[j];
             div.innerHTML+='<div class="option"><input type="radio" name="q'+i+'" value="'+o.charAt(0)+'"> '+o+'</div>';
         }
         div.innerHTML+='<div class="analysis">解析：'+item.tip+'</div>';
         box.appendChild(div);
     }
-    
-	// 考试模式也添加整行点击功能
-	var options = document.querySelectorAll('.option');
-	for(var k=0; k<options.length; k++){
-	    options[k].addEventListener('click', function(){
-	        var radio = this.querySelector('input[type=radio]');
-	        if(radio) {
-	            radio.checked = true;
-	            // 触发change事件（如果有需要）
-	            var event = new Event('change');
-	            radio.dispatchEvent(event);
-	        }
-	    });
-	}
-	
-	// ========== 新增：恢复考试答题记录并实时保存 ==========
-	var radios = document.querySelectorAll('.question input[type="radio"]');
-	for(var k=0; k<radios.length; k++){
-	    var radio = radios[k];
-	    var questionIndex = parseInt(radio.name.substring(1));
-	    // 获取当前选项的纯文本内容（去掉A./B.前缀）
-	    var optionText = radio.parentElement.textContent.trim();
-	    var optionContent = getOptionContent(optionText);
-	    // 按内容匹配恢复选中，完全不受选项打乱影响
-	    if(examAnswers[questionIndex] === optionContent){
-	        radio.checked = true;
-	    }
-	    // 实时保存答题记录（存纯内容，和练习模式逻辑一致）
-	    radio.addEventListener('change', function(){
-	        var qIdx = parseInt(this.name.substring(1));
-	        var selOptionText = this.parentElement.textContent.trim();
-	        examAnswers[qIdx] = getOptionContent(selOptionText);
-	        saveToLocalStorage();
-	    });
-	}	
-	// ========== 新增结束 ==========
 
-    // 清除之前的提示
+    // 整行点击选中
+    var options = document.querySelectorAll('.option');
+    for(var k=0; k<options.length; k++){
+        options[k].addEventListener('click', function(){
+            var radio = this.querySelector('input[type=radio]');
+            if(radio) {
+                radio.checked = true;
+                var event = new Event('change');
+                radio.dispatchEvent(event);
+            }
+        });
+    }
+
+    // 恢复答题记录 + 实时保存
+    var radios = document.querySelectorAll('.question input[type="radio"]');
+    for(var k=0; k<radios.length; k++){
+        var radio = radios[k];
+        var questionIndex = parseInt(radio.name.substring(1));
+        var optionText = radio.parentElement.textContent.trim();
+        var optionContent = getOptionContent(optionText);
+        if(examAnswers[questionIndex] === optionContent){
+            radio.checked = true;
+        }
+        radio.addEventListener('change', function(){
+            var qIdx = parseInt(this.name.substring(1));
+            var selOptionText = this.parentElement.textContent.trim();
+            examAnswers[qIdx] = getOptionContent(selOptionText);
+            saveToLocalStorage();
+        });
+    }	
+
+    // 考试已提交时恢复对错标记
+    if(examSubmitted) {
+        var questions = document.querySelectorAll('.question');
+        for(var i = 0; i < questions.length; i++) {
+            var qDom = questions[i];
+            var currentQ = currentExamList[i];
+            var userAnswerText = examAnswers[i] || "";
+            // 提取正确答案纯内容
+            var rightText = "";
+            var rightLetter = "";
+            for(var t=0; t<currentQ.opt.length; t++){
+                if(currentQ.opt[t].charAt(0) === currentQ.ans){
+                    rightText = getOptionContent(currentQ.opt[t]);
+                    break;
+                }
+            }
+            // 找到当前页面正确答案对应的字母
+            var allOpts = qDom.querySelectorAll('.option');
+            for(var t=0; t<allOpts.length; t++){
+                var optTxt = getOptionContent(allOpts[t].textContent.trim());
+                if(optTxt === rightText){
+                    rightLetter = allOpts[t].querySelector('input').value;
+                    break;
+                }
+            }
+
+            var analysis = qDom.querySelector('.analysis');
+            analysis.style.display = 'block';
+
+            var oldResult = qDom.querySelector('.answer-result');
+            if(oldResult) oldResult.remove();
+
+            var resultDiv = document.createElement('div');
+            if(userAnswerText === rightText) {
+			    addClass(qDom, 'correct');
+			    resultDiv.className = 'answer-result correct';
+			    resultDiv.innerHTML = CORRECT_TIP + rightLetter;
+			} else {
+			    addClass(qDom, 'wrong');
+			    resultDiv.className = 'answer-result wrong';
+			    resultDiv.innerHTML = WRONG_TIP + rightLetter;
+			}
+            qDom.insertBefore(resultDiv, analysis);
+        }
+    }
+
+    // 清除旧提示
     if(toastTimer) clearTimeout(toastTimer);
     if(currentToast) {
         document.body.removeChild(currentToast);
@@ -3248,97 +3467,87 @@ function renderPractice(){
     var div = document.createElement('div');
     div.className = 'question';
     div.innerHTML = '<div class="q-title">第'+(currentPracticeIndex+1)+'题：'+item.q+'【'+item.cate+'】</div>';
-    // ========== 新：保持A/B/C/D顺序，只打乱选项内容 ==========
-var optionsToRender = copyArray(item.opt);
-var correctAnswerContent = "";
-// 先找到原始正确答案对应的纯内容
-for(var k=0; k<item.opt.length; k++){
-    if(item.opt[k].charAt(0) === item.ans){
-        correctAnswerContent = getOptionContent(item.opt[k]); // 自动过滤答案前后缀
-        break;
-    }
-}
 
-if(shuffleOptions) {
-    // 1. 提取所有选项的纯内容
-    var contents = [];
+    // 生成渲染用选项：字母顺序固定，仅打乱内容
+    var optionsToRender = copyArray(item.opt);
+    var correctContent = "";
+    // 提取原始正确答案的纯内容
     for(var k=0; k<item.opt.length; k++){
-        contents.push(getOptionContent(item.opt[k])); //自动过滤选项前后缀
-    }
-    // 2. 只打乱纯内容
-    contents = shuffle(contents);
-    // 3. 重新按A/B/C/D顺序加前缀
-    optionsToRender = [];
-    var letters = ['A','B','C','D'];
-    for(var k=0; k<contents.length; k++){
-        optionsToRender.push(letters[k] + '.' + contents[k]);
-        // 4. 找到正确答案现在对应的字母
-        if(contents[k] === correctAnswerContent){
-            // 临时存储当前题的正确答案（不修改原始题库）
-            item._tempAns = letters[k];
+        if(item.opt[k].charAt(0) === item.ans){
+            correctContent = getOptionContent(item.opt[k]);
+            break;
         }
     }
-} else {
-    // 不打乱时，临时答案等于原始答案
-    item._tempAns = item.ans;
-}
-// 统一存正确答案的纯内容，供判断对错用
-item._correctContent = correctAnswerContent;
-// ========== 结束新逻辑 ==========
-    
-    for(var j=0; j<item.opt.length; j++){
-    var o = optionsToRender[j];
-    var val = o.charAt(0);
-    var optionContent = getOptionContent(o); // 自动过滤答案前后缀
-    // 用内容判断是否选中，兼容所有模式
-    var checked = (practiceAnswers[currentPracticeIndex] === optionContent) ? 'checked' : '';
-    div.innerHTML += '<div class="option"><input type="radio" name="p" value="'+val+'" '+checked+'> '+o+'</div>';
-}
-    
+    // 临时存储当前题正确答案的字母
+    var currentCorrectLetter = item.ans;
+
+    if(shuffleOptions) {
+        var contents = [];
+        // 提取所有选项纯内容
+        for(var k=0; k<item.opt.length; k++){
+            contents.push(getOptionContent(item.opt[k]));
+        }
+        // 只打乱内容
+        contents = shuffle(contents);
+        // 重新按A/B/C/D加前缀
+        optionsToRender = [];
+        var letters = ['A','B','C','D'];
+        for(var k=0; k<contents.length; k++){
+            optionsToRender.push(letters[k] + '.' + contents[k]);
+            // 匹配正确答案对应的新字母
+            if(contents[k] === correctContent){
+                currentCorrectLetter = letters[k];
+            }
+        }
+    }
+
+    // 渲染选项
+    for(var j=0; j<optionsToRender.length; j++){
+        var o = optionsToRender[j];
+        var val = o.charAt(0);
+        var optText = getOptionContent(o);
+        var uniqueKey = currentCategory + '_' + currentPracticeIndex;
+        var checked = (practiceAnswers[uniqueKey] === optText) ? 'checked' : '';
+        div.innerHTML += '<div class="option"><input type="radio" name="p" value="'+val+'" '+checked+'> '+o+'</div>';
+    }
+
     div.innerHTML += '<div class="analysis">解析：'+item.tip+'</div>';
     box.appendChild(div);
-    
-    // 背题模式自动显示答案和解析
-if(mode === "recite"){
-    addClass(div, 'show-answer');
-    var correctAns = item._tempAns || item.ans; // 优先使用打乱后的临时答案
-    
-    // 1. 标记正确答案背景+自动选中单选框
-    var options = div.querySelectorAll('.option');
-    for(var j=0; j<options.length; j++){
-        var input = options[j].querySelector('input');
-        if(input.value === correctAns){
-            addClass(options[j], 'correct');
-            input.checked = true; // 自动选中正确答案单选框
-        }
-    }    
-    
-    // 2. 固定在选项底部显示正确答案（和答题模式完全同位置）
-    var resultDiv = document.createElement('div');
-    resultDiv.className = 'answer-result correct';
-    resultDiv.innerHTML = '✅ 正确答案：' + correctAns;
-    var analysis = div.querySelector('.analysis');
-    div.insertBefore(resultDiv, analysis);
-}
-// 答题模式已答题显示结果
-else if(practiceJudge[currentPracticeIndex] !== undefined){
-    var jg = practiceJudge[currentPracticeIndex];
-    removeClass(div, 'correct');
-    removeClass(div, 'wrong');
-    addClass(div, jg ? 'correct' : 'wrong');
-    
-    // 切换题目时自动显示结果提示
-    var resultDiv = document.createElement('div');
-    resultDiv.className = 'answer-result ' + (jg ? 'correct' : 'wrong');
-    var correctAns = bank[currentPracticeIndex]._tempAns || bank[currentPracticeIndex].ans;
-    resultDiv.innerHTML = jg ? '✅ 回答正确' : `❌ 回答错误，正确答案：${correctAns}`;
-    var analysis = div.querySelector('.analysis');
-    div.insertBefore(resultDiv, analysis);
-    
-    analysis.style.display = 'block';
-}
-    
-    // 答题模式绑定事件 + 整行点击
+
+    // 背题模式：自动显示正确答案和解析
+    if(mode === "recite"){
+        addClass(div, 'show-answer');
+        var options = div.querySelectorAll('.option');
+        for(var j=0; j<options.length; j++){
+            var input = options[j].querySelector('input');
+            if(input.value === currentCorrectLetter){
+                addClass(options[j], 'correct');
+                input.checked = true;
+            }
+        }    
+        var resultDiv = document.createElement('div');
+        resultDiv.className = 'answer-result correct';
+        resultDiv.innerHTML = '✅ 正确答案：' + currentCorrectLetter;
+        var analysis = div.querySelector('.analysis');
+        div.insertBefore(resultDiv, analysis);
+    }
+    // 答题模式：已答题显示结果
+        else if(practiceJudge[currentCategory + '_' + currentPracticeIndex] !== undefined){
+        var jg = practiceJudge[currentCategory + '_' + currentPracticeIndex];        
+        removeClass(div, 'correct');
+        removeClass(div, 'wrong');
+        addClass(div, jg ? 'correct' : 'wrong');
+
+        var resultDiv = document.createElement('div');
+        resultDiv.className = 'answer-result ' + (jg ? 'correct' : 'wrong');
+        resultDiv.innerHTML = jg ? CORRECT_TIP + currentCorrectLetter : WRONG_TIP + currentCorrectLetter;
+        var analysis = div.querySelector('.analysis');
+        div.insertBefore(resultDiv, analysis);
+
+        analysis.style.display = 'block';
+    }
+
+    // 答题模式绑定点击事件
     if(mode === "practice"){
         var inputs = div.querySelectorAll('input[type=radio]');
         for(var j=0; j<inputs.length; j++){
@@ -3346,8 +3555,6 @@ else if(practiceJudge[currentPracticeIndex] !== undefined){
                 checkPracticeAnswer();
             });
         }
-        
-        // 整行点击选中
         var options = div.querySelectorAll('.option');
         for(var k=0; k<options.length; k++){
             options[k].addEventListener('click', function(){
@@ -3359,19 +3566,17 @@ else if(practiceJudge[currentPracticeIndex] !== undefined){
             });
         }
     }
-    
+
+    // 更新进度条
     var percent = ((currentPracticeIndex+1)/bank.length*100).toFixed(1);
     progressBar.style.width = percent+"%";
     updateQuestionGridMark();
-    
-    // 检查收藏状态
+    // 更新收藏状态
     checkFavoriteStatus();
-    
     // 滚动到顶部
     document.documentElement.scrollTop = 0;
     document.body.scrollTop = 0;
-    
-    // 保存到本地存储
+    // 保存本地存储
     saveToLocalStorage();
 }
 function checkPracticeAnswer(){
@@ -3383,7 +3588,8 @@ function checkPracticeAnswer(){
 	    // 获取选中选项的纯内容（去掉"选项"前后缀）
 	var selectedOptionText = sel.parentElement.textContent.trim();
 	var selectedContent = getOptionContent(selectedOptionText);
-	practiceAnswers[currentPracticeIndex] = selectedContent;
+	var uniqueKey = currentCategory + '_' + currentPracticeIndex;
+	practiceAnswers[uniqueKey] = selectedContent;
 	
 	// 用内容判断对错，兼容打乱/不打乱两种模式
 	var correctContent = item._correctContent || (function() {
@@ -3395,21 +3601,21 @@ function checkPracticeAnswer(){
 	    return '';
 	})();
 	var isRight = (selectedContent === correctContent);
-    practiceJudge[currentPracticeIndex] = isRight;
+    practiceJudge[uniqueKey] = isRight;
     
-    // 记录错题
+    // 记录错题（带分类前缀，避免跨分类重复）
     if(!isRight) {
-        if(wrongQuestions.indexOf(currentPracticeIndex) === -1) {
-            wrongQuestions.push(currentPracticeIndex);
+        if(wrongQuestions.indexOf(uniqueKey) === -1) {
+            wrongQuestions.push(uniqueKey);
         }
     } else {
         // 如果答对了，从错题中移除
-        var idx = wrongQuestions.indexOf(currentPracticeIndex);
+        var idx = wrongQuestions.indexOf(uniqueKey);
         if(idx !== -1) {
             wrongQuestions.splice(idx, 1);
         }
     }
-    
+
     var qdom = document.querySelector('.question');
     removeClass(qdom, 'correct');
     removeClass(qdom, 'wrong');
@@ -3420,10 +3626,21 @@ function checkPracticeAnswer(){
     if(oldResult) oldResult.remove();
     
     // 创建并插入结果提示（图标在前，文字在后，错误时显示正确答案）
-var resultDiv = document.createElement('div');
-resultDiv.className = 'answer-result ' + (isRight ? 'correct' : 'wrong');
-var correctAns = item._tempAns || item.ans;
-resultDiv.innerHTML = isRight ? '✅ 回答正确' : `❌ 回答错误，正确答案：${correctAns}`;
+    // 从当前页面选项中匹配正确内容对应的实际字母（兼容打乱/不打乱两种模式）
+    var displayCorrectLetter = item.ans;
+    var optionEls = document.querySelectorAll('.question .option');
+    for (var k = 0; k < optionEls.length; k++) {
+        var optContent = getOptionContent(optionEls[k].textContent.trim());
+        if (optContent === correctContent) {
+            displayCorrectLetter = optionEls[k].querySelector('input').value;
+            break;
+        }
+    }
+
+	// 创建并插入结果提示
+	var resultDiv = document.createElement('div');
+	resultDiv.className = 'answer-result ' + (isRight ? 'correct' : 'wrong');
+	resultDiv.innerHTML = isRight ? CORRECT_TIP + displayCorrectLetter : WRONG_TIP + displayCorrectLetter;
     var analysis = qdom.querySelector('.analysis');
     qdom.insertBefore(resultDiv, analysis);
     
@@ -3440,8 +3657,9 @@ function updateQuestionGridMark(){
         removeClass(btn, 'current');
         removeClass(btn, 'wrong');
         
-        if(practiceAnswers[i] !== undefined && i < bank.length){
-            if(practiceJudge[i] === false) {
+        var uniqueKey = currentCategory + '_' + i;
+        if(practiceAnswers[uniqueKey] !== undefined && i < bank.length){
+            if(practiceJudge[uniqueKey] === false) {
                 addClass(btn, 'wrong');
             } else {
                 addClass(btn, 'answered');
@@ -3453,9 +3671,18 @@ function updateQuestionGridMark(){
     }
 }
 function clearPracticeAll(){
-    practiceAnswers = {};
-    practiceJudge = {};
-    wrongQuestions = [];
+    // 仅清空当前分类的答题记录，保留其他分类
+    var bank = getCateBank();
+    for(var i=0; i<bank.length; i++){
+        var uniqueKey = currentCategory + '_' + i;
+        delete practiceAnswers[uniqueKey];
+        delete practiceJudge[uniqueKey];
+        // 从错题列表移除
+        var idx = wrongQuestions.indexOf(uniqueKey);
+        if(idx !== -1) {
+            wrongQuestions.splice(idx, 1);
+        }
+    }
     currentPracticeIndex = 0;
     // 同步当前模式的独立索引
     if(mode === "recite") reciteIndex = currentPracticeIndex;
@@ -3463,7 +3690,8 @@ function clearPracticeAll(){
     renderPractice();
     updateQuestionGridMark();
     updateStats(); // 清空后更新统计
-    showToast("已清空练习答案");
+    saveToLocalStorage(); // 同步到本地存储
+    showToast("已清空当前分类的练习答案");
 }
 // 新增：通用关键词高亮工具函数（自动转义HTML，防止XSS）
 function highlightKeyword(text, keyword) {
@@ -3517,8 +3745,9 @@ function initQuestionList(keyword){
             var btn=document.createElement('button');
             btn.innerText=item.index+1;
             btn.title=item.data.q;
-            if(practiceAnswers[item.index] !== undefined){
-                if(practiceJudge[item.index] === false) addClass(btn, 'wrong');
+                        var uniqueKey = currentCategory + '_' + item.index;
+            if(practiceAnswers[uniqueKey] !== undefined){
+                if(practiceJudge[uniqueKey] === false) addClass(btn, 'wrong');
                 else addClass(btn, 'answered');
             }
             if(item.index === currentPracticeIndex) addClass(btn, 'current');
