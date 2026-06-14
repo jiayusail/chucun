@@ -2976,6 +2976,11 @@ function initApp() {
 			        }
 			        renderPractice();
 			        updateStats();
+						// 模式切换提示（仅真正切换模式时弹出，避免重复点击重复弹窗）
+						if(oldMode !== mode) {
+					    if(mode === "practice") showToast("tips：手机试试手指左右滑动换题");
+					    if(mode === "recite") showToast("tips：电脑按左右方向键可换题");
+					}
 			    }
 			    saveToLocalStorage(); // 保存新的模式和索引
 			});
@@ -4185,16 +4190,17 @@ body.dark-mode .author-link:hover{
 <div class="log-modal" id="logModal">
     <div class="log-box">
         <div class="log-title">版本更新日志</div>
-        <div class="log-ver">Version 3.0</div>
-        <div class="log-date">2026-06-06</div>
-        <div class="log-item">1.新增答案选项随机打乱，避免机械记忆</div>
-        <div class="log-item">2.新增考试模式下，题目数、考试时间选择</div>
-        <div class="log-item">3.适配电脑端显示，增加键盘左右键切换题</div>
-        <div class="log-item">4.全部题库弹出新增搜索框，支持关键词筛选</div>
+        <div class="log-ver">Version 3.0 增强版</div>
+        <div class="log-date">2026-06-16</div>
+        <div class="log-item">1.新增打乱选项（默认开启），避免机械记忆</div>
+        <div class="log-item">2.新增考试模式下，题数、考试时间选择</div>
+        <div class="log-item">3.新增数据本地自动保存，可清除缓存重置</div>
+        <div class="log-item">4.列表弹窗新增搜索框，支持关键词搜题</div>
         <div class="log-item">5.新增全局夜间模式可切换，夜间刷题更护眼</div>
         <div class="log-item">6.优化对错提示样式，底部色块+文字标注</div>
-		<div class="log-item">7.适配小屏，修复按钮偏小、布局错位问题</div>
-		<div class="log-item">8.其他细节优化修复</div>
+		<div class="log-item">7.题库全面升级，已更新至1000题+并分类</div>
+		<div class="log-item">8.适配电脑端显示，增加键盘左右键切换题</div>
+		<div class="log-item">9.修复随机刷题无法持续化，及其他细节优化</div>
         <div class="log-ver">Version 2.0</div>
         <div class="log-date">2026-05-26</div>
         <div class="log-item">1.扩容至500题，六大分类，支持分类专项刷题</div>
