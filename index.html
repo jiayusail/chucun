@@ -1105,11 +1105,11 @@ body.dark-mode .list-box::-webkit-scrollbar-track{
     border-radius: 3px !important;
 }
 /* ========== 底部导航+弹窗 专属深色模式适配 ========== */
-/* 1. 底部四个导航文字（强制覆盖内联样式） */
-body.dark-mode div[style*="margin:80px auto 20px"] span{
+/* 1. 底部导航夜间模式适配 */
+body.dark-mode .footer-nav span{
     color: var(--dark-text-muted) !important;
 }
-body.dark-mode div[style*="margin:80px auto 20px"] span:hover{
+body.dark-mode .footer-nav span:hover{
     color: var(--dark-accent) !important;
 }
 
@@ -4020,6 +4020,36 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 </script>
 <!-- 底部页脚信息 -->
 <style>
+	/* 进站滚动公告 */
+.notice-scroll {
+    max-width: 1200px;
+    margin: 25px auto 0px;
+    padding: 0 12px;
+    overflow: hidden;
+    white-space: nowrap;
+    box-sizing: border-box;
+    color: #94a3b8; /* 日间：比导航文字浅一号灰色 */
+    font-size: 14px;
+    transition: opacity 1s ease;
+}
+.notice-text {
+    display: inline-block;
+    padding-left: 100%;
+    animation: noticeScroll 35s linear infinite;
+}
+@keyframes noticeScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
+/* 鼠标悬停暂停滚动 */
+.notice-scroll:hover .notice-text {
+    animation-play-state: paused;
+}
+/* 夜间模式适配 */
+body.dark-mode .notice-scroll {
+    color: #a0aec0; /* 夜间：浅灰色，比导航文字淡 */
+}
+
 .footer-info{
     text-align:center;
     margin-top:30px;
@@ -4035,8 +4065,13 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 }
 </style>
 
-<!-- 底部四个导航：上空3行居中 -->
-<div style="margin:80px auto 20px;text-align:center;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;max-width:1200px;">
+<!-- 进站滚动公告 -->
+<div class="notice-scroll" id="noticeScroll">
+    <div class="notice-text">📢：欢迎进入阿宇数控答题库，本站题库已全面升级，7大分类可专项练习、模拟考试，支持分类/关键词搜索找题，答题式学习，高效提升技能，助力求职上岗、升职加薪！如果你觉得我分享的内容有价值，可友情赞赏支持，另外有需要定制题库内容的可联系作者，谢谢！</div>
+</div>
+
+<!-- 底部四个导航 -->
+<div class="footer-nav" style="margin: 70px auto 20px;text-align:center;display:flex;justify-content:center;gap:24px;flex-wrap:wrap;max-width:1200px;">
     <span onclick="openSuggest()" style="color:#2d3748;font-size:15px;cursor:pointer;">意见建议</span>
     <span onclick="openAuthor()" style="color:#2d3748;font-size:15px;cursor:pointer;">联系作者</span>
     <span onclick="openUpdateLog()" style="color:#2d3748;font-size:15px;cursor:pointer;">更新日志</span>
@@ -4364,6 +4399,98 @@ function closeAuthor(){document.getElementById('authorModal').style.display='non
 //编程软件
 function openSoftNav(){document.getElementById('softModal').style.display='flex';}
 function closeSoft(){document.getElementById('softModal').style.display='none';}
+
+// 滚动2次后平滑淡出再隐藏
+const notice = document.getElementById('noticeScroll');
+let scrollCount = 0;
+
+notice.addEventListener('animationiteration', () => {
+  scrollCount++;
+  if (scrollCount >= 2) {
+    // 第一步：把透明度设为0，触发CSS的淡出过渡
+    notice.style.opacity = '0';
+    // 第二步：等淡出动画结束后，再彻底隐藏元素
+    setTimeout(() => {
+      notice.style.display = 'none';
+    }, 1000); // 这里的500毫秒=0.5秒，和CSS里的过渡时间保持一致
+  }
+});
+</script>
+
+<script>
+// ========== 防审查、防扒代码综合防护 ==========
+(function() {
+    // 1. 禁用鼠标右键菜单
+    document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+        showToast('禁止右键操作');
+        return false;
+    });
+
+    // 2. 禁用所有常用开发者工具快捷键
+    document.addEventListener('keydown', function(e) {
+        // 禁用 F12
+        if(e.key === 'F12' || e.keyCode === 123) {
+            e.preventDefault();
+            showToast('禁止打开开发者工具');
+            return false;
+        }
+        // 禁用 Ctrl+Shift+I / J / C（审查、控制台、元素选择）
+        if(e.ctrlKey && e.shiftKey && ['I','J','C','i','j','c'].includes(e.key)) {
+            e.preventDefault();
+            showToast('禁止打开开发者工具');
+            return false;
+        }
+        // 禁用 Ctrl+U 查看源代码
+        if(e.ctrlKey && (e.key === 'U' || e.key === 'u')) {
+            e.preventDefault();
+            showToast('禁止查看源代码');
+            return false;
+        }
+        // 禁用 Ctrl+S 保存网页
+        if(e.ctrlKey && (e.key === 'S' || e.key === 's')) {
+            e.preventDefault();
+            showToast('禁止保存页面');
+            return false;
+        }
+    });
+
+    // 3. 开发者工具打开检测（检测到则清空页面）
+    let checkCount = 0;
+    function detectDevTools() {
+        // 方案A：通过窗口内外尺寸差检测侧边/底部开发者面板
+        const widthGap = window.outerWidth - window.innerWidth;
+        const heightGap = window.outerHeight - window.innerHeight;
+        if(widthGap > 160 || heightGap > 160) {
+            triggerProtect();
+            return;
+        }
+
+        // 方案B：利用console特性检测
+        const check = function() {};
+        check.toString = function() {
+            triggerProtect();
+        };
+        console.log(check);
+        console.clear();
+    }
+
+    function triggerProtect() {
+        // 检测到开发者工具，清空页面内容并提示
+        document.body.innerHTML = 
+            '<div style="text-align:center;padding-top:200px;font-size:18px;color:#666;">请关闭开发者工具后刷新页面访问</div>';
+        // 也可以改成跳转空白页：window.location.href = 'about:blank';
+    }
+
+    // 定时循环检测
+    setInterval(detectDevTools, 1000);
+
+    // 4. 禁止文本选中复制（可选，不需要可以删掉）
+    document.addEventListener('selectstart', function(e) {
+        e.preventDefault();
+        return false;
+    });
+})();
 </script>
 
 <div class="footer-info">
