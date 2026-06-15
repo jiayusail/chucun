@@ -4022,13 +4022,14 @@ if (document.readyState === "complete" || document.readyState === "interactive")
 <style>
 	/* 进站滚动公告 */
 .notice-scroll {
-    max-width: 1190px;
-    margin: 25px auto 0px;
-    padding: 0 12px;
+    width: 100%; /* 新增：保证小屏自适应 */
+    max-width: 1000; /* 比如 1000px，和container完全一致 */
+    margin: 25px auto 0;
+    padding: 0 12px; /* 左右padding也要和.container的左右padding保持一致 */
     overflow: hidden;
     white-space: nowrap;
     box-sizing: border-box;
-    color: #94a3b8; /* 日间：比导航文字浅一号灰色 */
+    color: #94a3b8;
     font-size: 14px;
     transition: opacity 1s ease;
 }
