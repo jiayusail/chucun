@@ -1863,7 +1863,7 @@ function loadCategoryData(categoryKey) {
             return merged;
         });
 };
-
+var pageSizeExam = 25;
 var mode = "recite"; // 默认背题模式
 var examAnswers = {}; // 新增：存储考试模式的答题记录（key:题目索引, value:选中的选项值）
 var reciteIndex = 0; // 背题模式独立题目索引
@@ -1914,10 +1914,6 @@ function saveToLocalStorage() {
 		    countdownRunning: countdownRunning,
 		    examAnswers: examAnswers,
 		    examSubmitted: examSubmitted // 保存考试提交状态
-			// ===== 新增：保存考试题数、时长配置 =====
-			currentExamSize: currentExamSize,
-			currentExamTime: currentExamTime,
-			pageSizeExam: pageSizeExam
 		};
         localStorage.setItem('cncTestData', JSON.stringify(data));
     } catch(e) {
@@ -1957,10 +1953,6 @@ if (isRandomMode && randomBtn) {
 	if(parsed.countdownRunning) countdownRunning = parsed.countdownRunning;
 	if(parsed.examAnswers) examAnswers = parsed.examAnswers;
 	if(parsed.examSubmitted !== undefined) examSubmitted = parsed.examSubmitted;
-	// ===== 新增：读取考试题数、时长配置 =====
-    if(parsed.currentExamSize) currentExamSize = parsed.currentExamSize;
-    if(parsed.currentExamTime) currentExamTime = parsed.currentExamTime;
-    if(parsed.pageSizeExam) pageSizeExam = parsed.pageSizeExam;
 
     // 设置分类选择器
     categorySelect.value = currentCategory;
