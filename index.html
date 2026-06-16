@@ -1803,6 +1803,7 @@ function showLongToast(text) {
         document.addEventListener('click', closeHandler);
     }, 100);
 }
+
 // ========== 分类题库映射表 ==========
 var CATEGORY_MAP = {
     "all": {
@@ -1828,14 +1829,21 @@ var CATEGORY_MAP = {
 
 // 已加载的题库缓存：已加载过的分类不再重复请求
 var loadedBanks = {};
+// 加载中的Promise缓存：解决并发重复请求问题
+var loadingPromises = {};
 // 题库文件基础路径（GitHub Pages直接用相对路径即可）
 var DATA_BASE_PATH = "./data/";
 
 // ========== 分类加载函数（返回Promise） ==========
 function loadCategoryData(categoryKey) {
-    // 已加载过直接返回缓存
+    // 1. 已加载完成，直接返回缓存
     if (loadedBanks[categoryKey]) {
         return Promise.resolve(loadedBanks[categoryKey]);
+    }
+
+    // 2. 正在加载中，返回同一个Promise，避免重复请求
+    if (loadingPromises[categoryKey]) {
+        return loadingPromises[categoryKey];
     }
 
     var config = CATEGORY_MAP[categoryKey];
@@ -1843,27 +1851,52 @@ function loadCategoryData(categoryKey) {
         return Promise.reject(new Error("分类不存在"));
     }
 
-    // 批量加载需要的JSON文件
+    // 3. 批量加载：优先读取已缓存的单文件，未缓存的再发请求
     var fetchPromises = config.files.map(function(filename) {
+        // 遍历所有单分类，匹配文件名，命中已缓存的直接复用
+        for (var cate in CATEGORY_MAP) {
+            if (CATEGORY_MAP[cate].files.length === 1 
+                && CATEGORY_MAP[cate].files[0] === filename 
+                && loadedBanks[cate]) {
+                // 已有缓存，直接返回
+                return Promise.resolve(loadedBanks[cate]);
+            }
+        }
+        // 无缓存，发起请求
         return fetch(DATA_BASE_PATH + filename, { cache: "default" })
             .then(function(res) {
-                if (!res.ok) throw new Error("文件加载失败：" + filename);
-                return res.json();
+                if (!res.ok) {
+                    throw new Error("文件加载失败：" + filename + "（状态码：" + res.status + "）");
+                }
+                return res.json().catch(function() {
+                    throw new Error("JSON格式错误：" + filename + "，请检查文件语法");
+                });
             });
     });
 
-    // 合并多分类数据（仅「全部题库」用到）
-    return Promise.all(fetchPromises)
+    // 4. 合并多分类数据（仅「全部题库」用到）
+    var loadPromise = Promise.all(fetchPromises)
         .then(function(results) {
             var merged = [];
             results.forEach(function(arr) {
                 merged = merged.concat(arr);
             });
             loadedBanks[categoryKey] = merged;
+            // 加载完成，清除加载中缓存
+            delete loadingPromises[categoryKey];
             return merged;
+        })
+        .catch(function(err) {
+            // 加载失败，清除加载中缓存，允许重试
+            delete loadingPromises[categoryKey];
+            throw err;
         });
-};
-var pageSizeExam = 25;
+
+    // 存入加载中缓存
+    loadingPromises[categoryKey] = loadPromise;
+    return loadPromise;
+}
+
 var mode = "recite"; // 默认背题模式
 var examAnswers = {}; // 新增：存储考试模式的答题记录（key:题目索引, value:选中的选项值）
 var reciteIndex = 0; // 背题模式独立题目索引
@@ -1914,6 +1947,10 @@ function saveToLocalStorage() {
 		    countdownRunning: countdownRunning,
 		    examAnswers: examAnswers,
 		    examSubmitted: examSubmitted // 保存考试提交状态
+			// ===== 新增：保存考试题数、时长配置 =====
+	        currentExamSize: currentExamSize,
+	        currentExamTime: currentExamTime,
+	        pageSizeExam: pageSizeExam
 		};
         localStorage.setItem('cncTestData', JSON.stringify(data));
     } catch(e) {
@@ -1953,6 +1990,10 @@ if (isRandomMode && randomBtn) {
 	if(parsed.countdownRunning) countdownRunning = parsed.countdownRunning;
 	if(parsed.examAnswers) examAnswers = parsed.examAnswers;
 	if(parsed.examSubmitted !== undefined) examSubmitted = parsed.examSubmitted;
+	// ===== 新增：读取考试题数、时长配置 =====
+	if(parsed.currentExamSize) currentExamSize = parsed.currentExamSize;
+	if(parsed.currentExamTime) currentExamTime = parsed.currentExamTime;
+	if(parsed.pageSizeExam) pageSizeExam = parsed.pageSizeExam;
 
     // 设置分类选择器
     categorySelect.value = currentCategory;
