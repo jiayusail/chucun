@@ -2824,7 +2824,7 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
     } else {
         renderPractice();
     }
-    // ✅ 点击后自动关闭题目列表弹窗（你要加的核心行）
+    // ✅ 点击后自动关闭题目列表弹窗
     listModal.style.display = "none";
 });
         
@@ -2843,61 +2843,79 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
         
         // 初始化知识拓展折叠功能
         initKnowledgeToggle();
-        
-        // ========== 修复：根据上次保存的模式自动初始化对应UI ==========
-        if(mode === "exam"){
-            // 考试模式UI
-            examBtns.style.display = "flex";
-            practiceBtns.style.display = "none";
-            statsBar.style.display = "none";
-            countdownBtn.style.display = "flex";
-            progressWrap.style.display = "none";
-            
-            // 只要有保存的题目就直接恢复，不管有没有答题
-            var hasSavedExam = currentExamList.length > 0;
-            if(!hasSavedExam){
-                // 没有保存的考试，才生成新题并弹出选择
-                resetCountdown();
-                getNewExamBatch();
-                examAnswers = {};
-                examSubmitted = false;
-                saveToLocalStorage();
-                setTimeout(() => {
-                    document.getElementById('allListExam').click();
-                }, 300);
-            } else {
-                // 有保存的考试，直接渲染题目+恢复答题记录
-                renderExam();
-                // 如果之前倒计时在运行，继续倒计时
-                if(countdownRunning){
-                    toggleCountdown();
-                }
-                showToast("✅ 已恢复上次考题");
-        }
-        }else{
-            // 背题/答题模式UI
-            examBtns.style.display = "none";
-            practiceBtns.style.display = "flex";
-            statsBar.style.display = "flex";
-            countdownBtn.style.display = "none";
-            progressWrap.style.display = "block";
-            resetCountdown();
-            initQuestionList();
-            // 索引越界保护（防止上次分类题目数减少导致报错）
-            var bank = getCateBank();
-            if(currentPracticeIndex >= bank.length) {
-                currentPracticeIndex = bank.length - 1;
-                // 同步对应模式的独立索引
-                if(mode === "recite") reciteIndex = currentPracticeIndex;
-                if(mode === "practice") practiceIndex = currentPracticeIndex;
+
+        // ========== 核心修改：确保分类加载完成后再渲染页面 ==========
+        function ensureCategoryLoaded() {
+            // 已加载直接返回，未加载则异步加载
+            if (loadedBanks[currentCategory]) {
+                return Promise.resolve();
             }
-            renderPractice();
-            updateStats();
+            return loadCategoryData(currentCategory);
         }
-        
-        // 隐藏加载，显示应用
-        document.getElementById('loading').style.display = 'none';
-        document.getElementById('app').style.display = 'block';
+
+        ensureCategoryLoaded().then(function() {
+            // ========== 根据上次保存的模式自动初始化对应UI ==========
+            if(mode === "exam"){
+                // 考试模式UI
+                examBtns.style.display = "flex";
+                practiceBtns.style.display = "none";
+                statsBar.style.display = "none";
+                countdownBtn.style.display = "flex";
+                progressWrap.style.display = "none";
+                
+                // 只要有保存的题目就直接恢复，不管有没有答题
+                var hasSavedExam = currentExamList.length > 0;
+                if(!hasSavedExam){
+                    // 没有保存的考试，生成新题并弹出选择
+                    resetCountdown();
+                    getNewExamBatch();
+                    examAnswers = {};
+                    examSubmitted = false;
+                    saveToLocalStorage();
+                    setTimeout(() => {
+                        document.getElementById('allListExam').click();
+                    }, 300);
+                } else {
+                    // 有保存的考试，直接渲染题目+恢复答题记录
+                    renderExam();
+                    // 如果之前倒计时在运行，继续倒计时
+                    if(countdownRunning){
+                        toggleCountdown();
+                    }
+                    showToast("✅ 已恢复上次考题");
+                }
+            }else{
+                // 背题/答题模式UI
+                examBtns.style.display = "none";
+                practiceBtns.style.display = "flex";
+                statsBar.style.display = "flex";
+                countdownBtn.style.display = "none";
+                progressWrap.style.display = "block";
+                resetCountdown();
+                initQuestionList();
+                // 索引越界保护（防止上次分类题目数减少导致报错）
+                var bank = getCateBank();
+                if(currentPracticeIndex >= bank.length) {
+                    currentPracticeIndex = bank.length - 1;
+                    // 同步对应模式的独立索引
+                    if(mode === "recite") reciteIndex = currentPracticeIndex;
+                    if(mode === "practice") practiceIndex = currentPracticeIndex;
+                }
+                renderPractice();
+                updateStats();
+            }
+            
+            // 隐藏加载，显示应用
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('app').style.display = 'block';
+        }).catch(function(err) {
+            // 加载失败显示错误提示
+            var errorDiv = document.getElementById('error');
+            errorDiv.style.display = 'block';
+            errorDiv.innerHTML = '题库加载失败，请刷新重试：\n' + err.message;
+            document.getElementById('loading').style.display = 'none';
+        });
+
 	// 电脑端键盘左右键切换上下题（仅背题/答题模式生效）
 document.addEventListener('keydown', function(e) {
     // 仅在背题/答题模式生效，考试模式禁用
