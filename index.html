@@ -9,6 +9,8 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
+<!-- 预加载默认分类题库，首屏请求提前启动 -->
+<link rel="preload" href="./data/program-code.json" as="fetch" type="application/json" crossorigin="anonymous">
 <!-- 数控题库 Favicon 图标配置 -->
 <!-- 迅雷浏览器专属图标 -->
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
@@ -1288,9 +1290,8 @@ body.dark-mode .result-close-tip {
 <body>
 <div class="container">
     <h1>数控综合测试题目</h1>
-    <div id="loading" class="loading">正在加载题库，请稍候...</div>
     <div id="error" class="error" style="display:none;"></div>
-    <div id="app" style="display:none;">
+    <div id="app">
         <div class="mode-bar">
             <button class="mode-btn active" data-mode="recite">背题</button>
             <button class="mode-btn" data-mode="practice">答题</button>
@@ -1309,7 +1310,9 @@ body.dark-mode .result-close-tip {
         <div class="progress-bar" id="progressWrap">
             <div class="progress-inner" id="progressBar"></div>
         </div>
-        <div id="questions"></div>
+        <div id="questions">
+             <div id="loading" class="loading">正在加载题库，请稍候...</div>
+         </div>
         <div id="result"></div>
         
         <!-- 知识拓展模块 -->
@@ -2937,9 +2940,10 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
                 updateStats();
             }
             
-            // 隐藏加载，显示应用
-            document.getElementById('loading').style.display = 'none';
-            document.getElementById('app').style.display = 'block';
+            // 加载完成，移除题目里的loading元素
+			var loadingEl = document.getElementById('loading');
+			if (loadingEl) loadingEl.remove();
+
         }).catch(function(err) {
             // 加载失败显示错误提示
             var errorDiv = document.getElementById('error');
