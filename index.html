@@ -1838,52 +1838,106 @@ var loadingPromises = {};
 var DATA_BASE_PATH = "./data/";
 // 题库数据版本号：更新题库文件后修改此版本号，用户浏览器会自动拉取新数据
 var BANK_VERSION = "v3.0";
+// ========== 本地缓存工具：文件级缓存 + 旧版本自动清理 ==========
+// 页面加载自动清理所有旧版本缓存，避免残留占用空间
+(function clearOldCache() {
+    try {
+        var keysToRemove = [];
+        for (var i = 0; i < localStorage.length; i++) {
+            var key = localStorage.key(i);
+            if (!key) continue;
+            // 兼容清理旧格式分类缓存 + 新版本文件缓存中版本不匹配的
+            if (key.indexOf('cncBank_') === 0 || key.indexOf('cncFile_') === 0) {
+                try {
+                    var data = localStorage.getItem(key);
+                    var parsed = JSON.parse(data);
+                    if (parsed.version !== BANK_VERSION) {
+                        keysToRemove.push(key);
+                    }
+                } catch(e) {
+                    // 格式损坏的缓存直接删除
+                    keysToRemove.push(key);
+                }
+            }
+        }
+        // 统一删除（避免遍历中删除导致索引错乱）
+        for (var j = 0; j < keysToRemove.length; j++) {
+            localStorage.removeItem(keysToRemove[j]);
+        }
+    } catch(e) {
+        console.warn('本地缓存清理失败：', e);
+    }
+})();
 
-// ========== 分类加载函数（返回Promise，三层缓存：内存 → 本地存储 → 网络） ==========
+// 读取单个文件的本地缓存，版本匹配返回数据，不匹配返回null
+function getFileCache(filename) {
+    try {
+        var cacheKey = 'cncFile_' + filename;
+        var cacheData = localStorage.getItem(cacheKey);
+        if (!cacheData) return null;
+        var parsed = JSON.parse(cacheData);
+        if (parsed.version === BANK_VERSION && parsed.data) {
+            return parsed.data;
+        }
+        // 版本不匹配直接删掉，避免占空间
+        localStorage.removeItem(cacheKey);
+        return null;
+    } catch(e) {
+        return null;
+    }
+}
+
+// 写入单个文件的本地缓存
+function setFileCache(filename, data) {
+    try {
+        var cacheKey = 'cncFile_' + filename;
+        localStorage.setItem(cacheKey, JSON.stringify({
+            version: BANK_VERSION,
+            data: data
+        }));
+    } catch(e) {
+        console.warn('文件缓存写入失败：' + filename, e);
+    }
+}
+
+// ========== 分类加载函数（返回Promise，三层缓存：内存 → 文件级本地存储 → 网络） ==========
 function loadCategoryData(categoryKey) {
     // 1. 第一层：内存缓存，已加载完成直接返回（原有逻辑完全保留）
     if (loadedBanks[categoryKey]) {
         return Promise.resolve(loadedBanks[categoryKey]);
     }
 
-    // 2. 第二层：localStorage持久化缓存，版本匹配直接复用（新增核心逻辑）
-    try {
-        var cacheKey = 'cncBank_' + categoryKey;
-        var cacheData = localStorage.getItem(cacheKey);
-        if (cacheData) {
-            var parsed = JSON.parse(cacheData);
-            // 版本号一致则缓存有效，直接存入内存并返回
-            if (parsed.version === BANK_VERSION && parsed.data) {
-                loadedBanks[categoryKey] = parsed.data;
-                return Promise.resolve(parsed.data);
-            }
-        }
-    } catch(e) {
-        // 异常降级：localStorage禁用/容量满时，自动走网络请求，不影响主流程
-        console.warn('本地题库缓存读取失败，将走网络请求：', e);
-    }
-
-    // 3. 第三层：网络请求（原有防重复请求逻辑完全保留）
+    // 2. 防重复请求：正在加载中的直接返回Promise（原有逻辑完全保留）
     if (loadingPromises[categoryKey]) {
         return loadingPromises[categoryKey];
     }
+
     var config = CATEGORY_MAP[categoryKey];
     if (!config) {
         return Promise.reject(new Error("分类不存在"));
     }
 
-    // 批量加载：优先读取已缓存的单文件，未缓存的再发请求
+    // 3. 逐个加载文件：优先读本地文件缓存，未命中再发网络请求
     var fetchPromises = config.files.map(function(filename) {
-        // 遍历所有单分类，匹配文件名，命中已缓存的直接复用
+        // 3.1 先查本地文件缓存，命中直接返回（核心优化：刷新后也能复用单文件缓存）
+        var cacheData = getFileCache(filename);
+        if (cacheData) {
+            return Promise.resolve(cacheData);
+        }
+
+        // 3.2 再查内存中已加载的单分类（原有复用逻辑保留）
         for (var cate in CATEGORY_MAP) {
             if (CATEGORY_MAP[cate].files.length === 1 
                 && CATEGORY_MAP[cate].files[0] === filename 
                 && loadedBanks[cate]) {
+                // 内存里有数据，顺便写入本地缓存，下次刷新直接用
+                setFileCache(filename, loadedBanks[cate]);
                 return Promise.resolve(loadedBanks[cate]);
             }
         }
-        // 无缓存，发起网络请求
-        return fetch(DATA_BASE_PATH + filename, { cache: "default" })
+
+        // 3.3 无缓存，发起网络请求（禁用浏览器HTTP缓存，完全由版本号控制更新）
+        return fetch(DATA_BASE_PATH + filename, { cache: "no-store" })
             .then(function(res) {
                 if (!res.ok) {
                     throw new Error("文件加载失败：" + filename + "（状态码：" + res.status + "）");
@@ -1891,6 +1945,12 @@ function loadCategoryData(categoryKey) {
                 return res.json().catch(function() {
                     throw new Error("JSON格式错误：" + filename + "，请检查文件语法");
                 });
+            })
+            .then(function(jsonData) {
+                // 请求成功立刻写入本地缓存，不用等全部文件加载完
+                // 优化点：中途失败不浪费已下载的文件，下次打开直接复用
+                setFileCache(filename, jsonData);
+                return jsonData;
             });
     });
 
@@ -1902,18 +1962,6 @@ function loadCategoryData(categoryKey) {
                 merged = merged.concat(arr);
             });
             loadedBanks[categoryKey] = merged;
-
-            // 请求成功后，写入localStorage持久化缓存
-            try {
-                var cacheKey = 'cncBank_' + categoryKey;
-                localStorage.setItem(cacheKey, JSON.stringify({
-                    version: BANK_VERSION,
-                    data: merged
-                }));
-            } catch(e) {
-                // 存储失败不影响主流程，仅控制台提示
-                console.warn('本地题库缓存写入失败：', e);
-            }
 
             // 加载完成，清除加载中缓存
             delete loadingPromises[categoryKey];
