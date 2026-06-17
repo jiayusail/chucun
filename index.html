@@ -1735,32 +1735,33 @@ window.onerror = function(message, source, lineno, colno, error) {
 	var toastTimer = null;
 	var longToastActive = false;
 	var currentToast = null;
-	// 自动消失提示函数（2秒）- 中央悬浮显示
-	function showToast(text) {
-    if(longToastActive) return; // 长提示显示时不显示短提示
+	// 自动消失提示函数（可自定义时长，默认2秒）- 中央悬浮显示
+function showToast(text, duration) {
+    if(longToastActive) return;
     
-    // 清除之前的提示
     if(toastTimer) clearTimeout(toastTimer);
     if(currentToast) {
         document.body.removeChild(currentToast);
         currentToast = null;
     }
     
-    // 创建新的提示
     var toast = document.createElement('div');
     toast.className = 'toast-modal';
     toast.innerText = text;
     document.body.appendChild(toast);
     currentToast = toast;
     
-    // 2秒后自动消失
+    // 没传时间就默认2秒，传了就用你给的时间
+    var showTime = duration ? duration : 2000;
+    
     toastTimer = setTimeout(function(){
         if(currentToast === toast) {
             document.body.removeChild(toast);
             currentToast = null;
         }
-    }, 2000);
+    }, showTime);
 }
+
 // 长显示提示函数（点击关闭按钮或空白处消失）- 中央悬浮显示
 function showLongToast(text) {
     // 清除之前的提示
@@ -2610,7 +2611,7 @@ function initQuestionFeatures() {
                     updateStats(); // 更新统计
                 }
                 saveToLocalStorage();
-                showToast("题库加载完成");
+                showToast("题库加载完成", 1000);
             }).catch(function(err){
                 showToast("题库加载失败：" + err.message);
             });
