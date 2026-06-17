@@ -9,8 +9,6 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<!-- 首屏题库预加载 -->
-<link rel="preload" href="./data/program-code.json" as="fetch" type="application/json" crossorigin="anonymous">
 <!-- 数控题库 Favicon 图标配置 -->
 <!-- 迅雷浏览器专属图标 -->
 <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
@@ -1713,6 +1711,22 @@ body.dark-mode #startExamBtn {
 }
 </style>
 <script>
+// 内联首屏默认分类数据，彻底消除首屏请求延迟
+window.INLINE_BANK = {
+  "程序代码": [
+	{"q":"程序中S代码含义","opt":["A.刀具号","B.坐标","C.进给速度","D.主轴转速"],"ans":"D","tip":"S代码指定主轴转速，单位r/min（转/分钟），配合M03/M04使用。","cate":"程序代码"},
+	{"q":"程序中F代码含义","opt":["A.主轴转速","B.刀具","C.进给速度","D.坐标"],"ans":"C","tip":"F代码指定进给速度，G94单位mm/min，G95单位mm/r。","cate":"程序代码"},
+	{"q":"程序中T代码含义","opt":["A.刀具号","B.主轴","C.坐标","D.进给"],"ans":"A","tip":"T代码指定刀具号，加工中心T后面数字对应刀套号，自动换刀使用。","cate":"程序代码"},
+	{"q":"程序中H代码含义","opt":["A.半径补偿","B.主轴","C.冷却液","D.长度补偿"],"ans":"D","tip":"H代码对应刀具长度补偿号，与G43/G44配合使用。","cate":"程序代码"},
+	{"q":"程序中D代码含义","opt":["A.主轴","B.长度补偿","C.半径补偿","D.冷却液"],"ans":"C","tip":"D代码对应刀具半径补偿号，与G41/G42配合使用。","cate":"程序代码"},
+	{"q":"程序中R代码含义","opt":["A.进给","B.圆弧半径/R点","C.刀具","D.转速"],"ans":"B","tip":"R在圆弧中为半径；在固定循环中为安全高度（R点平面）。","cate":"程序代码"},
+	{"q":"程序中IJK含义","opt":["A.圆心增量坐标","B.转速","C.补偿","D.进给"],"ans":"A","tip":"I、J、K分别表示圆弧圆心相对于起点在X、Y、Z轴的增量坐标。","cate":"程序代码"},
+	{"q":"程序中P代码含义","opt":["A.进给","B.坐标","C.转速","D.延时时间"],"ans":"D","tip":"P多用于G04延时（毫秒）、固定循环参数、子程序号。","cate":"程序代码"},
+	{"q":"程序中Q代码含义","opt":["A.进给","B.每次切深","C.补偿","D.转速"],"ans":"B","tip":"Q在深孔钻、镗孔循环中表示每次进给深度，用于分段切削。","cate":"程序代码"}
+  ]
+};
+</script>
+<script>
 // 全局错误捕获（兼容所有浏览器，过滤跨域Script error）
 window.onerror = function(message, source, lineno, colno, error) {
     // 过滤QQ/UC/夸克浏览器的跨域脚本错误（行号为0的Script error）
@@ -1837,6 +1851,11 @@ var DATA_BASE_PATH = "./data/";
 
 // ========== 分类加载函数（返回Promise） ==========
 function loadCategoryData(categoryKey) {
+	// 新增：优先读取内联数据，首屏零网络请求
+    if (window.INLINE_BANK && window.INLINE_BANK[categoryKey]) {
+        loadedBanks[categoryKey] = window.INLINE_BANK[categoryKey];
+        return Promise.resolve(loadedBanks[categoryKey]);
+    }
     // 1. 已加载完成，直接返回缓存
     if (loadedBanks[categoryKey]) {
         return Promise.resolve(loadedBanks[categoryKey]);
