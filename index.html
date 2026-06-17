@@ -2412,40 +2412,134 @@ function initKnowledgeToggle() {
         });
     }
 }
-// 外层启动函数：首屏只加载默认分类，提速明显
+
+// 外层启动函数：UI初始化和数据加载并行执行
 function initApp() {
-    // 首屏默认加载「程序代码」分类，可自行修改
+    // 1. DOM就绪立刻初始化所有纯UI交互（不依赖题库数据）
+    initUIOnly();
+
+    // 2. 同时异步加载默认分类题库数据
     var defaultCategory = "程序代码";
     currentCategory = defaultCategory;
     
     loadCategoryData(defaultCategory).then(function(){
-        // 数据加载成功，再初始化所有交互功能
-        initAllFeatures();
+        // 3. 数据加载完成，初始化题目相关逻辑并渲染
+        initQuestionFeatures();
     }).catch(function(err){
         // 加载失败显示错误
         var errorDiv = document.getElementById('error');
         errorDiv.style.display = 'block';
         errorDiv.innerHTML = '题库加载失败，请刷新重试：\n' + err.message;
-        document.getElementById('loading').style.display = 'none';
+        // 移除loading
+        var loadingEl = document.getElementById('loading');
+        if(loadingEl) loadingEl.remove();
     });
 }
 
-// 初始化函数
-function initAllFeatures() {
-    try {
-        // 获取所有DOM元素
-        box = document.getElementById('questions');
-        progressWrap = document.getElementById('progressWrap');
-        progressBar = document.getElementById('progressBar');
-        examBtns = document.getElementById('examBtns');
-        practiceBtns = document.getElementById('practiceBtns');
-        listModal = document.getElementById('listModal');
-        questionGrid = document.getElementById('questionGrid');
-        backTopBtn = document.getElementById('backTop');
-        categorySelect = document.getElementById('categorySelect');
-        statsBar = document.getElementById('statsBar');
-        countdownBtn = document.getElementById('countdownBtn');
+// 纯UI交互初始化：DOM就绪立刻执行，和数据加载并行
+function initUIOnly() {
+    // 提前获取所有DOM元素（全局变量，后续函数直接复用）
+    box = document.getElementById('questions');
+    progressWrap = document.getElementById('progressWrap');
+    progressBar = document.getElementById('progressBar');
+    examBtns = document.getElementById('examBtns');
+    practiceBtns = document.getElementById('practiceBtns');
+    listModal = document.getElementById('listModal');
+    questionGrid = document.getElementById('questionGrid');
+    backTopBtn = document.getElementById('backTop');
+    categorySelect = document.getElementById('categorySelect');
+    statsBar = document.getElementById('statsBar');
+    countdownBtn = document.getElementById('countdownBtn');
+
+    // 绑定滑动事件（无数据时自动不生效，无报错）
+    document.addEventListener('touchstart', handleTouchStart, false);
+    document.addEventListener('touchmove', handleTouchMove, false);
+    document.addEventListener('touchend', handleTouchEnd, false);
+
+    // 电脑端键盘左右键切题（无数据时自动return，无报错）
+    document.addEventListener('keydown', function(e) {
+        if(mode !== "recite" && mode !== "practice") return;
+        if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+        var bank = getCateBank();
+        if(bank.length === 0) return;
         
+        if(e.key === 'ArrowLeft' || e.keyCode === 37) {
+            if (isRandomMode) {
+                currentPracticeIndex = getRandomNextIndex();
+            } else {
+                if(currentPracticeIndex > 0) {
+                    currentPracticeIndex--;
+                } else {
+                    return;
+                }
+            }
+            if(mode === "recite") reciteIndex = currentPracticeIndex;
+            if(mode === "practice") practiceIndex = currentPracticeIndex;
+            renderPractice();
+            e.preventDefault();
+        }
+        
+        if(e.key === 'ArrowRight' || e.keyCode === 39) {
+            if (isRandomMode) {
+                currentPracticeIndex = getRandomNextIndex();
+            } else {
+                if(currentPracticeIndex < bank.length - 1) {
+                    currentPracticeIndex++;
+                } else {
+                    return;
+                }
+            }
+            if(mode === "recite") reciteIndex = currentPracticeIndex;
+            if(mode === "practice") practiceIndex = currentPracticeIndex;
+            renderPractice();
+            e.preventDefault();
+        }
+    });
+
+    // 弹窗空白处关闭（纯UI）
+    listModal.addEventListener('click', function(e){
+        if(e.target===listModal) listModal.style.display="none";
+    });
+    document.getElementById('examSelectModal').addEventListener('click', function(e) {
+        if(e.target === this) {
+            document.getElementById('examSelectModal').style.display = 'none';
+        }
+    });
+
+    // 返回顶部按钮（纯UI）
+    window.addEventListener('scroll', function(){
+        backTopBtn.style.display = window.scrollY>300 ? 'flex' : 'none';
+    });
+    backTopBtn.addEventListener('click', function(){
+        document.documentElement.scrollTop = 0;
+        document.body.scrollTop = 0;
+    });
+
+    // 初始化知识拓展折叠功能（纯UI）
+    initKnowledgeToggle();
+
+    // 倒计时按钮事件（纯UI，toggleCountdown为全局函数）
+    countdownBtn.addEventListener('click', toggleCountdown);
+
+    // 夜间模式初始化+切换（纯UI，不依赖题库）
+    var nightModeBtn = document.getElementById('nightModeBtn');
+    if(localStorage.getItem('nightMode') === 'true'){
+        document.body.classList.add('dark-mode');
+        nightModeBtn.textContent = '日间模式';
+    }
+    nightModeBtn.addEventListener('click', function(){
+        document.body.classList.toggle('dark-mode');
+        var isDark = document.body.classList.contains('dark-mode');
+        localStorage.setItem('nightMode', isDark);
+        this.textContent = isDark ? '日间模式' : '夜间模式';
+        showToast(isDark ? '✅ 已切换夜间模式' : '✅ 已切换日间模式');
+        listModal.style.display = 'none';
+    });
+}
+
+// 题目相关功能初始化：数据加载完成后执行
+function initQuestionFeatures() {
+    try {
         // 加载本地存储数据
         loadFromLocalStorage();
         
@@ -2457,104 +2551,95 @@ function initAllFeatures() {
             removeClass(shuffleBtn, 'active');
         }
         
-        // ========== 新增：夜间模式首次引导 ==========
+        // 夜间模式首次引导
         checkNightTip();
-        
-        // 绑定倒计时按钮事件
-        countdownBtn.addEventListener('click', toggleCountdown);
-        
-        // 绑定滑动事件
-        document.addEventListener('touchstart', handleTouchStart, false);
-        document.addEventListener('touchmove', handleTouchMove, false);
-        document.addEventListener('touchend', handleTouchEnd, false);
-        
-		// 绑定分类选择事件（异步加载版本）
-		categorySelect.addEventListener('change', function(){
-		    var newCategory = this.value;
-		    if (newCategory === currentCategory) return;
-		    
-		    showToast("正在加载题库...");
-		    loadCategoryData(newCategory).then(function(){
-		        currentCategory = newCategory;
-		        currentPracticeIndex = 0;
-		        isRandomMode = false;
-		        // 切换分类自动关闭随机刷题
-		        removeClass(document.getElementById('randomBtn'), 'active');
-		        // 同步当前模式的独立索引
-		        if(mode === "recite") reciteIndex = currentPracticeIndex;
-		        if(mode === "practice") practiceIndex = currentPracticeIndex;
-		        currentListType = "all";
-		        if(mode === "exam"){
-		            resetCountdown();
-		            getNewExamBatch();
-		            renderExam();
-		        }else{
-		            initQuestionList();
-		            renderPractice();
-		            updateStats(); // 更新统计
-		        }
-		        saveToLocalStorage();
-		        showToast("题库加载完成");
-		    }).catch(function(err){
-		        showToast("题库加载失败：" + err.message);
-		    });
-		});
+
+        // 绑定分类选择事件（异步加载版本）
+        categorySelect.addEventListener('change', function(){
+            var newCategory = this.value;
+            if (newCategory === currentCategory) return;
+            
+            showToast("正在加载题库...");
+            loadCategoryData(newCategory).then(function(){
+                currentCategory = newCategory;
+                currentPracticeIndex = 0;
+                isRandomMode = false;
+                // 切换分类自动关闭随机刷题
+                removeClass(document.getElementById('randomBtn'), 'active');
+                // 同步当前模式的独立索引
+                if(mode === "recite") reciteIndex = currentPracticeIndex;
+                if(mode === "practice") practiceIndex = currentPracticeIndex;
+                currentListType = "all";
+                if(mode === "exam"){
+                    resetCountdown();
+                    getNewExamBatch();
+                    renderExam();
+                }else{
+                    initQuestionList();
+                    renderPractice();
+                    updateStats(); // 更新统计
+                }
+                saveToLocalStorage();
+                showToast("题库加载完成");
+            }).catch(function(err){
+                showToast("题库加载失败：" + err.message);
+            });
+        });
 
         // 绑定模式切换事件
         var modeBtns = document.querySelectorAll('.mode-btn');
         for(var i=0; i<modeBtns.length; i++){
-				modeBtns[i].addEventListener('click', function(){
-				// ========== 考试未提交禁止切换模式 ==========
-				if(mode === "exam" && !examSubmitted) {
-				    var hasExamAnswers = document.querySelectorAll('.question input[type="radio"]:checked').length > 0;
-				    if(hasExamAnswers || countdownRunning) {
-				        showToast("⚠️ 请完成考试后，方可进行操作！");
-				        return;
-				    }
-				}
-				// ========== 修改结束 ==========
-			
-			    // 1. 先保存当前模式的索引（仅背题/答题模式）
-			    var oldMode = mode;
-			    if(oldMode === "recite") {
-			        reciteIndex = currentPracticeIndex;
-			    } else if(oldMode === "practice") {
-			        practiceIndex = currentPracticeIndex;
-			    }
+            modeBtns[i].addEventListener('click', function(){
+                // 考试未提交禁止切换模式
+                if(mode === "exam" && !examSubmitted) {
+                    var hasExamAnswers = document.querySelectorAll('.question input[type="radio"]:checked').length > 0;
+                    if(hasExamAnswers || countdownRunning) {
+                        showToast("⚠️ 请完成考试后，方可进行操作！");
+                        return;
+                    }
+                }
+            
+                // 1. 先保存当前模式的索引（仅背题/答题模式）
+                var oldMode = mode;
+                if(oldMode === "recite") {
+                    reciteIndex = currentPracticeIndex;
+                } else if(oldMode === "practice") {
+                    practiceIndex = currentPracticeIndex;
+                }
 
-			    // 2. 更新模式按钮状态
-			    for(var j=0; j<modeBtns.length; j++){
-			        removeClass(modeBtns[j], 'active');
-			    }
-			    addClass(this, 'active');
-			    var newMode = this.getAttribute('data-mode');
-			    mode = newMode;
-			
-			    // 3. 仅重置考试相关变量（保留背题/答题的答案和索引）
-			    wrongList = [];
-			    currentListType = "all";
-			    
-			    // 4. 加载新模式的独立索引
-			    if(newMode === "recite") {
-			        currentPracticeIndex = reciteIndex;
-			    } else if(newMode === "practice") {
-			        currentPracticeIndex = practiceIndex;
-			    }
-			    
-			    // 清除之前的提示
-			    if(toastTimer) clearTimeout(toastTimer);
-			    if(currentToast) {
-			        document.body.removeChild(currentToast);
-			        currentToast = null;
-			    }
-			    longToastActive = false;
-			    
-			    if(mode === "exam"){
-			        examBtns.style.display = "flex";
-			        practiceBtns.style.display = "none";
-			        statsBar.style.display = "none";
-			        countdownBtn.style.display = "flex";
-			        progressWrap.style.display = "none";
+                // 2. 更新模式按钮状态
+                for(var j=0; j<modeBtns.length; j++){
+                    removeClass(modeBtns[j], 'active');
+                }
+                addClass(this, 'active');
+                var newMode = this.getAttribute('data-mode');
+                mode = newMode;
+            
+                // 3. 仅重置考试相关变量（保留背题/答题的答案和索引）
+                wrongList = [];
+                currentListType = "all";
+                
+                // 4. 加载新模式的独立索引
+                if(newMode === "recite") {
+                    currentPracticeIndex = reciteIndex;
+                } else if(newMode === "practice") {
+                    currentPracticeIndex = practiceIndex;
+                }
+                
+                // 清除之前的提示
+                if(toastTimer) clearTimeout(toastTimer);
+                if(currentToast) {
+                    document.body.removeChild(currentToast);
+                    currentToast = null;
+                }
+                longToastActive = false;
+                
+                if(mode === "exam"){
+                    examBtns.style.display = "flex";
+                    practiceBtns.style.display = "none";
+                    statsBar.style.display = "none";
+                    countdownBtn.style.display = "flex";
+                    progressWrap.style.display = "none";
                     
                     // 已有未提交的考试记录则直接恢复，否则生成新题
                     if(currentExamList.length > 0 && !examSubmitted){
@@ -2571,189 +2656,186 @@ function initAllFeatures() {
                             document.getElementById('allListExam').click();
                         }, 300);
                     }
-			    }else{
-			        examBtns.style.display = "none";
-			        practiceBtns.style.display = "flex";
-			        statsBar.style.display = "flex";
-			        countdownBtn.style.display = "none";
-			        progressWrap.style.display = "block";
-			        resetCountdown();
-			        initQuestionList();
-			        // 索引越界保护（切换分类后题目数减少时）
-			        var bank = getCateBank();
-			        if(currentPracticeIndex >= bank.length) {
-			            currentPracticeIndex = bank.length - 1;
-			            // 同步回对应模式的索引
-			            if(mode === "recite") reciteIndex = currentPracticeIndex;
-			            if(mode === "practice") practiceIndex = currentPracticeIndex;
-			        }
-			        renderPractice();
-			        updateStats();
-						// 模式切换提示（仅真正切换模式时弹出，避免重复点击重复弹窗）
-						if(oldMode !== mode) {
-					    if(mode === "practice") showToast("tips：手机试试手指左右滑动换题");
-					    if(mode === "recite") showToast("tips：电脑按左右方向键可换题");
-					}
-			    }
-			    saveToLocalStorage(); // 保存新的模式和索引
-			});
+                }else{
+                    examBtns.style.display = "none";
+                    practiceBtns.style.display = "flex";
+                    statsBar.style.display = "flex";
+                    countdownBtn.style.display = "none";
+                    progressWrap.style.display = "block";
+                    resetCountdown();
+                    initQuestionList();
+                    // 索引越界保护（切换分类后题目数减少时）
+                    var bank = getCateBank();
+                    if(currentPracticeIndex >= bank.length) {
+                        currentPracticeIndex = bank.length - 1;
+                        // 同步回对应模式的索引
+                        if(mode === "recite") reciteIndex = currentPracticeIndex;
+                        if(mode === "practice") practiceIndex = currentPracticeIndex;
+                    }
+                    renderPractice();
+                    updateStats();
+                    // 模式切换提示（仅真正切换模式时弹出，避免重复点击重复弹窗）
+                    if(oldMode !== mode) {
+                        if(mode === "practice") showToast("tips：手机试试手指左右滑动换题");
+                        if(mode === "recite") showToast("tips：电脑按左右方向键可换题");
+                    }
+                }
+                saveToLocalStorage(); // 保存新的模式和索引
+            });
         }
         
-		// 绑定考试模式按钮事件（添加悬浮提示+未答题校验）
-		document.getElementById('submit').addEventListener('click', function(){
-		    // ========== 新增：未答题数量校验 ==========
-		    var questions = document.querySelectorAll('.question');
-		    var unansweredCount = 0;
-		    
-		    // 遍历所有题目，统计未勾选的数量
-		    for(var i=0; i<questions.length; i++){
-		        var hasAnswer = questions[i].querySelector('input[type="radio"]:checked');
-		        if(!hasAnswer){
-		            unansweredCount++;
-		        }
-		    }
-		    
-			// 如果有未答题，弹出提示并自动滚动到第一个未答题
-			if(unansweredCount > 0){
-			    showToast(`当前有 ${unansweredCount} 题未答，请答完后再交卷！`);
-			    // 自动平滑滚动到第一个未答题的位置，居中显示
-			    for(var i=0; i<questions.length; i++){
-			        var hasAnswer = questions[i].querySelector('input[type="radio"]:checked');
-			        if(!hasAnswer){
-			            questions[i].scrollIntoView({behavior: 'smooth', block: 'center'});
-			            break;
-			        }
-			    }
-			    return; // 终止后续交卷逻辑
-			}
-		    // ========== 校验结束，执行原有交卷逻辑 ==========
-		    
-		    showToast("正在提交试卷...");
-			var right=0;
-			wrongList=[];
-			for(var i=0; i<questions.length; i++){
-			    var dom = questions[i];
-			    var sel=dom.querySelector('input:checked');
-			    var item = currentExamList[i];
-			    
-			    // 1. 提取原始正确答案的纯内容
-			    var correctContent = "";
-			    for(var m=0; m<item.opt.length; m++){
-			        if(item.opt[m].charAt(0) === item.ans){
-			            correctContent = getOptionContent(item.opt[m]);
-			            break;
-			        }
-			    }
-			    
-			    // 2. 提取用户选中选项的纯内容
-			    var selectContent = "";
-			    if(sel){
-			        selectContent = getOptionContent(sel.parentElement.textContent.trim());
-			    }
-			    
-			    // 3. 找到当前页面正确答案对应的字母（用于提示显示）
-			    var correctLetter = "";
-			    var allOptions = dom.querySelectorAll('.option');
-			    for(var n=0; n<allOptions.length; n++){
-			        var optText = getOptionContent(allOptions[n].textContent.trim());
-			        if(optText === correctContent){
-			            correctLetter = allOptions[n].querySelector('input').value;
-			            break;
-			        }
-			    }
-			    
-			    var tip=dom.querySelector('.analysis');
-			    removeClass(dom, 'correct');
-			    removeClass(dom, 'wrong');
-			    tip.style.display='block';
-			    
-			    // 先移除旧的提示条，避免重复
-			    var oldResult = dom.querySelector('.answer-result');
-			    if(oldResult) oldResult.remove();
-			    
-			    var resultDiv = document.createElement('div');
-			    // 按内容比对判断对错，彻底不受打乱顺序影响
-				if(sel && selectContent === correctContent){	
-				    right++;
-				    addClass(dom, 'correct');
-				    resultDiv.className = 'answer-result correct';
-				    resultDiv.innerHTML = CORRECT_TIP + correctLetter;
-				}else{
-				    addClass(dom, 'wrong');
-				    wrongList.push(currentExamList[i]);
-				    resultDiv.className = 'answer-result wrong';
-				    resultDiv.innerHTML = WRONG_TIP + correctLetter;
-				}
-			    dom.insertBefore(resultDiv, tip);
-			}
-		    var score = (right/currentExamList.length*100).toFixed(1);
-		    var wrongCount = wrongList.length;
-		    var correctCount = right;
-		    
-		    // 生成鼓励语
-		    var encouragement = "";
-		    if(score >= 90) {
-		        encouragement = "🎉 太棒了！你已经掌握了大部分知识，继续保持！";
-		    } else if(score >= 70) {
-		        encouragement = "👍 不错！还有提升空间，多看看错题会更好！";
-		    } else if(score >= 60) {
-		        encouragement = "💪 及格了！但还需要加强练习，重点复习薄弱环节！";
-		    } else {
-		        encouragement = "📚 逢考必过！继续加油！";
-		    }
-		    
-		    // 长显示结果
-			var resultHtml = '<div style="font-size:18px;margin-bottom:8px;">考试成绩：<span style="color:#4299e1;font-size:24px;">' + score + ' 分</span></div>';
-			resultHtml += '<div style="margin-bottom:12px;">答对：' + correctCount + ' 题 | 答错：' + wrongCount + ' 题</div>';
-			resultHtml += '<div class="result-encouragement">' + encouragement + '</div>';
-			resultHtml += '<div class="result-close-tip">任意点击关闭</div>';
+        // 绑定考试模式按钮事件
+        document.getElementById('submit').addEventListener('click', function(){
+            // 未答题数量校验
+            var questions = document.querySelectorAll('.question');
+            var unansweredCount = 0;
+            
+            // 遍历所有题目，统计未勾选的数量
+            for(var i=0; i<questions.length; i++){
+                var hasAnswer = questions[i].querySelector('input[type="radio"]:checked');
+                if(!hasAnswer){
+                    unansweredCount++;
+                }
+            }
+            
+            // 如果有未答题，弹出提示并自动滚动到第一个未答题
+            if(unansweredCount > 0){
+                showToast(`当前有 ${unansweredCount} 题未答，请答完后再交卷！`);
+                // 自动平滑滚动到第一个未答题的位置，居中显示
+                for(var i=0; i<questions.length; i++){
+                    var hasAnswer = questions[i].querySelector('input[type="radio"]:checked');
+                    if(!hasAnswer){
+                        questions[i].scrollIntoView({behavior: 'smooth', block: 'center'});
+                        break;
+                    }
+                }
+                return; // 终止后续交卷逻辑
+            }
+            // 校验结束，执行原有交卷逻辑
+            
+            showToast("正在提交试卷...");
+            var right=0;
+            wrongList=[];
+            for(var i=0; i<questions.length; i++){
+                var dom = questions[i];
+                var sel=dom.querySelector('input:checked');
+                var item = currentExamList[i];
+                
+                // 1. 提取原始正确答案的纯内容
+                var correctContent = "";
+                for(var m=0; m<item.opt.length; m++){
+                    if(item.opt[m].charAt(0) === item.ans){
+                        correctContent = getOptionContent(item.opt[m]);
+                        break;
+                    }
+                }
+                
+                // 2. 提取用户选中选项的纯内容
+                var selectContent = "";
+                if(sel){
+                    selectContent = getOptionContent(sel.parentElement.textContent.trim());
+                }
+                
+                // 3. 找到当前页面正确答案对应的字母（用于提示显示）
+                var correctLetter = "";
+                var allOptions = dom.querySelectorAll('.option');
+                for(var n=0; n<allOptions.length; n++){
+                    var optText = getOptionContent(allOptions[n].textContent.trim());
+                    if(optText === correctContent){
+                        correctLetter = allOptions[n].querySelector('input').value;
+                        break;
+                    }
+                }
+                
+                var tip=dom.querySelector('.analysis');
+                removeClass(dom, 'correct');
+                removeClass(dom, 'wrong');
+                tip.style.display='block';
+                
+                // 先移除旧的提示条，避免重复
+                var oldResult = dom.querySelector('.answer-result');
+                if(oldResult) oldResult.remove();
+                
+                var resultDiv = document.createElement('div');
+                // 按内容比对判断对错，彻底不受打乱顺序影响
+                if(sel && selectContent === correctContent){	
+                    right++;
+                    addClass(dom, 'correct');
+                    resultDiv.className = 'answer-result correct';
+                    resultDiv.innerHTML = CORRECT_TIP + correctLetter;
+                }else{
+                    addClass(dom, 'wrong');
+                    wrongList.push(currentExamList[i]);
+                    resultDiv.className = 'answer-result wrong';
+                    resultDiv.innerHTML = WRONG_TIP + correctLetter;
+                }
+                dom.insertBefore(resultDiv, tip);
+            }
+            var score = (right/currentExamList.length*100).toFixed(1);
+            var wrongCount = wrongList.length;
+            var correctCount = right;
+            
+            // 生成鼓励语
+            var encouragement = "";
+            if(score >= 90) {
+                encouragement = "🎉 太棒了！你已经掌握了大部分知识，继续保持！";
+            } else if(score >= 70) {
+                encouragement = "👍 不错！还有提升空间，多看看错题会更好！";
+            } else if(score >= 60) {
+                encouragement = "💪 及格了！但还需要加强练习，重点复习薄弱环节！";
+            } else {
+                encouragement = "📚 逢考必过！继续加油！";
+            }
+            
+            // 长显示结果
+            var resultHtml = '<div style="font-size:18px;margin-bottom:8px;">考试成绩：<span style="color:#4299e1;font-size:24px;">' + score + ' 分</span></div>';
+            resultHtml += '<div style="margin-bottom:12px;">答对：' + correctCount + ' 题 | 答错：' + wrongCount + ' 题</div>';
+            resultHtml += '<div class="result-encouragement">' + encouragement + '</div>';
+            resultHtml += '<div class="result-close-tip">任意点击关闭</div>';
+            
+            showLongToast(resultHtml);
+            
+            // 停止倒计时
+            resetCountdown();
+            examSubmitted = true; // 标记考试已提交
+            saveToLocalStorage();
+        });
 
-		    
-		    showLongToast(resultHtml);
-		    
-			// 停止倒计时
-			resetCountdown();
-			examSubmitted = true; // 标记考试已提交
-			// 【修复】移除清空答题记录代码，保留记录用于下次恢复
-			saveToLocalStorage();
-		});
-
-		document.getElementById('reset').addEventListener('click', function(){
-		    var radios = document.querySelectorAll('input[type=radio]');
-		    for(var i=0; i<radios.length; i++){
-		        radios[i].checked=false;
-		    }
-		    var questions = document.querySelectorAll('.question');
-		    for(var i=0; i<questions.length; i++){
-		        var d = questions[i];
-		        removeClass(d, 'correct');
-		        removeClass(d, 'wrong');
-		        d.querySelector('.analysis').style.display='none';
-		        
-		        // 移除提交后显示的对错结果提示条
-		        var resultDiv = d.querySelector('.answer-result');
-		        if(resultDiv){
-		            resultDiv.remove();
-		        }
-		    }
-		    // 重置后自动滚动到试卷顶部
-		    document.documentElement.scrollTop = 0;
-		    document.body.scrollTop = 0;
-		    
-		    // 原重置倒计时（自动适配25/50/100题的对应时长）
-		    resetCountdown();
-		    // ✅ 新增：自动重新开始倒计时
-		    toggleCountdown();
-		
-		    examSubmitted = false; // 新增：重置后恢复未提交状态
-		    showToast("已清空所有答案，并重新计时");
-		    wrongList = []; // 重置时清空错题列表
-		    // ========== 新增修复：同步清空本地存储答题记录 ==========
-		    examAnswers = {};
-		    examSubmitted = false;
-		    saveToLocalStorage();
-		    // ========== 修复结束 ==========
-		});
+        document.getElementById('reset').addEventListener('click', function(){
+            var radios = document.querySelectorAll('input[type=radio]');
+            for(var i=0; i<radios.length; i++){
+                radios[i].checked=false;
+            }
+            var questions = document.querySelectorAll('.question');
+            for(var i=0; i<questions.length; i++){
+                var d = questions[i];
+                removeClass(d, 'correct');
+                removeClass(d, 'wrong');
+                d.querySelector('.analysis').style.display='none';
+                
+                // 移除提交后显示的对错结果提示条
+                var resultDiv = d.querySelector('.answer-result');
+                if(resultDiv){
+                    resultDiv.remove();
+                }
+            }
+            // 重置后自动滚动到试卷顶部
+            document.documentElement.scrollTop = 0;
+            document.body.scrollTop = 0;
+            
+            // 原重置倒计时（自动适配25/50/100题的对应时长）
+            resetCountdown();
+            // 新增：自动重新开始倒计时
+            toggleCountdown();
+        
+            examSubmitted = false; // 新增：重置后恢复未提交状态
+            showToast("已清空所有答案，并重新计时");
+            wrongList = []; // 重置时清空错题列表
+            // 同步清空本地存储答题记录
+            examAnswers = {};
+            examSubmitted = false;
+            saveToLocalStorage();
+        });
 
         document.getElementById('redo').addEventListener('click', function(){
             if(wrongList.length===0){
@@ -2776,110 +2858,174 @@ function initAllFeatures() {
         });
         
         // 绑定练习模式按钮事件
-		document.getElementById('prev').addEventListener('click', function(){
-		    var bank = getCateBank();
-		    if (isRandomMode) {
-		        currentPracticeIndex = getRandomNextIndex();
-		    } else {
-		        if(currentPracticeIndex > 0){
-		            currentPracticeIndex--;
-		        } else {
-		            showToast("已经是第一题了");
-		            return;
-		        }
-		    }
-		    if(mode === "recite") reciteIndex = currentPracticeIndex;
-		    if(mode === "practice") practiceIndex = currentPracticeIndex;
-		    renderPractice();
-		});
+        document.getElementById('prev').addEventListener('click', function(){
+            var bank = getCateBank();
+            if (isRandomMode) {
+                currentPracticeIndex = getRandomNextIndex();
+            } else {
+                if(currentPracticeIndex > 0){
+                    currentPracticeIndex--;
+                } else {
+                    showToast("已经是第一题了");
+                    return;
+                }
+            }
+            if(mode === "recite") reciteIndex = currentPracticeIndex;
+            if(mode === "practice") practiceIndex = currentPracticeIndex;
+            renderPractice();
+        });
         
-		document.getElementById('next').addEventListener('click', function(){
-		    var bank = getCateBank();
-		    if (isRandomMode) {
-		        currentPracticeIndex = getRandomNextIndex();
-		    } else {
-		        if(currentPracticeIndex < bank.length - 1){
-		            currentPracticeIndex++;
-		        } else {
-		            showToast("已经是最后一题了");
-		            return;
-		        }
-		    }
-		    if(mode === "recite") reciteIndex = currentPracticeIndex;
-		    if(mode === "practice") practiceIndex = currentPracticeIndex;
-		    renderPractice();
-		});
+        document.getElementById('next').addEventListener('click', function(){
+            var bank = getCateBank();
+            if (isRandomMode) {
+                currentPracticeIndex = getRandomNextIndex();
+            } else {
+                if(currentPracticeIndex < bank.length - 1){
+                    currentPracticeIndex++;
+                } else {
+                    showToast("已经是最后一题了");
+                    return;
+                }
+            }
+            if(mode === "recite") reciteIndex = currentPracticeIndex;
+            if(mode === "practice") practiceIndex = currentPracticeIndex;
+            renderPractice();
+        });
 
         document.getElementById('clearPractice').addEventListener('click', clearPracticeAll);
         
-		document.getElementById('allList').addEventListener('click', function(){
-		    resetFilterButtons(); // 统一重置两个按钮状态
-		    initQuestionList();
-			var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
-		    document.getElementById('listTitle').textContent = cateName + "题目列表（共" + getCateBank().length + "题）";
-		    updateQuestionGridMark();
-		    listModal.style.display="flex";
-		});
+        document.getElementById('allList').addEventListener('click', function(){
+            resetFilterButtons(); // 统一重置两个按钮状态
+            initQuestionList();
+            var cateName = currentCategory === 'all' ? '全部题库' : currentCategory;
+            document.getElementById('listTitle').textContent = cateName + "题目列表（共" + getCateBank().length + "题）";
+            updateQuestionGridMark();
+            listModal.style.display="flex";
+        });
         
         // 绑定收藏按钮事件
         document.getElementById('favorite').addEventListener('click', toggleFavorite);
         
         // 绑定考试模式题目列表按钮事件（改为打开模拟考试选择）
-document.getElementById('allListExam').addEventListener('click', function(){
-    // 重置选择状态
-    document.querySelectorAll('.exam-option').forEach(btn => {
-        removeClass(btn, 'active');
-    });
-    document.getElementById('startExamBtn').disabled = true;
-    // 打开模拟考试选择弹窗
-    document.getElementById('examSelectModal').style.display = "flex";
-});
+        document.getElementById('allListExam').addEventListener('click', function(){
+            // 重置选择状态
+            document.querySelectorAll('.exam-option').forEach(btn => {
+                removeClass(btn, 'active');
+            });
+            document.getElementById('startExamBtn').disabled = true;
+            // 打开模拟考试选择弹窗
+            document.getElementById('examSelectModal').style.display = "flex";
+        });
 
         // 绑定随机刷题、错题、收藏按钮事件
-	    document.getElementById('randomBtn').addEventListener('click', toggleRandomMode);
+        document.getElementById('randomBtn').addEventListener('click', toggleRandomMode);
         document.getElementById('wrongBtn').addEventListener('click', showWrongQuestions);
         document.getElementById('favoriteBtn').addEventListener('click', showFavorites);
+        
         // 打乱选项按钮点击事件
-document.getElementById('shuffleBtn').addEventListener('click', function() {
-    shuffleOptions = !shuffleOptions;
-    if (shuffleOptions) {
-        addClass(this, 'active');
-        this.textContent = "打乱选项";
-        showToast("✅ 已开启打乱选项");
-    } else {
-        removeClass(this, 'active');
-        this.textContent = "打乱选项";
-        showToast("❌ 已关闭打乱选项");
-    }
-    saveToLocalStorage();
-    
-    // 立即重新渲染当前题目
-    if (mode === "exam") {
-        renderExam();
-    } else {
-        renderPractice();
-    }
-    // ✅ 点击后自动关闭题目列表弹窗
-    listModal.style.display = "none";
-});
-        
-        listModal.addEventListener('click', function(e){
-            if(e.target===listModal) listModal.style.display="none";
+        document.getElementById('shuffleBtn').addEventListener('click', function() {
+            shuffleOptions = !shuffleOptions;
+            if (shuffleOptions) {
+                addClass(this, 'active');
+                this.textContent = "打乱选项";
+                showToast("✅ 已开启打乱选项");
+            } else {
+                removeClass(this, 'active');
+                this.textContent = "打乱选项";
+                showToast("❌ 已关闭打乱选项");
+            }
+            saveToLocalStorage();
+            
+            // 立即重新渲染当前题目
+            if (mode === "exam") {
+                renderExam();
+            } else {
+                renderPractice();
+            }
+            // 点击后自动关闭题目列表弹窗
+            listModal.style.display = "none";
         });
-        
-        window.addEventListener('scroll', function(){
-            backTopBtn.style.display = window.scrollY>300 ? 'flex' : 'none';
-        });
-        
-        backTopBtn.addEventListener('click', function(){
-            document.documentElement.scrollTop = 0;
-            document.body.scrollTop = 0;
-        });
-        
-        // 初始化知识拓展折叠功能
-        initKnowledgeToggle();
 
-        // ========== 核心修改：确保分类加载完成后再渲染页面 ==========
+        // 题目搜索功能
+        var searchInput = document.getElementById('questionSearch');
+        // 输入实时搜索
+        searchInput.addEventListener('input', function(){
+            initQuestionList(this.value);
+        });
+        // 打开题目列表时清空搜索框
+        document.getElementById('allList').addEventListener('click', function(){
+            searchInput.value = '';
+            initQuestionList();
+        });
+        // 点击其他按钮（随机/错题/收藏）时清空搜索框
+        document.getElementById('randomBtn').addEventListener('click', function(){
+            searchInput.value = '';
+        });
+        document.getElementById('wrongBtn').addEventListener('click', function(){
+            searchInput.value = '';
+        });
+        document.getElementById('favoriteBtn').addEventListener('click', function(){
+            searchInput.value = '';
+        });
+        // 切换分类时清空搜索框
+        categorySelect.addEventListener('change', function(){
+            searchInput.value = '';
+        });
+
+        // 考试得分按钮
+        document.getElementById('examScoreBtn').addEventListener('click', function(){
+            // 触发考试模式按钮点击
+            document.querySelector('[data-mode="exam"]').click();
+            // 关闭题目列表弹窗
+            listModal.style.display = 'none';
+            showToast('✅ 已进入考试模式');
+        });
+        
+        // 模拟考试选择功能
+        var selectedSize = null;
+        var selectedTime = null;
+
+        // 考试选项点击事件
+        document.querySelectorAll('.exam-option').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // 清除其他选项的选中状态
+                document.querySelectorAll('.exam-option').forEach(b => {
+                    removeClass(b, 'active');
+                });
+                // 选中当前选项
+                addClass(this, 'active');
+                // 保存选择的参数
+                selectedSize = parseInt(this.getAttribute('data-size'));
+                selectedTime = parseInt(this.getAttribute('data-time'));
+                // 启用开始考试按钮
+                document.getElementById('startExamBtn').disabled = false;
+            });
+        });
+
+        // 开始考试按钮点击事件
+        document.getElementById('startExamBtn').addEventListener('click', function() {
+            if(!selectedSize || !selectedTime) return;
+            
+            // 更新全局考试参数
+            currentExamSize = selectedSize;
+            currentExamTime = selectedTime;
+            pageSizeExam = selectedSize;
+            
+            // 关闭选择弹窗
+            document.getElementById('examSelectModal').style.display = 'none';
+            
+            // 重置并生成新的考试题目
+            resetCountdown();
+            getNewExamBatch();
+            renderExam();
+            
+            // 自动开始倒计时
+            toggleCountdown();
+            
+            showToast(`已开始${selectedSize}道题模拟考试，时长${selectedTime}分钟`);
+        });
+
+        // 核心：确保分类加载完成后再渲染首屏
         function ensureCategoryLoaded() {
             // 已加载直接返回，未加载则异步加载
             if (loadedBanks[currentCategory]) {
@@ -2889,7 +3035,7 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
         }
 
         ensureCategoryLoaded().then(function() {
-            // ========== 根据上次保存的模式自动初始化对应UI ==========
+            // 根据上次保存的模式自动初始化对应UI
             if(mode === "exam"){
                 // 考试模式UI
                 examBtns.style.display = "flex";
@@ -2941,169 +3087,24 @@ document.getElementById('shuffleBtn').addEventListener('click', function() {
             }
             
             // 加载完成，移除题目里的loading元素
-			var loadingEl = document.getElementById('loading');
-			if (loadingEl) loadingEl.remove();
+            var loadingEl = document.getElementById('loading');
+            if (loadingEl) loadingEl.remove();
 
         }).catch(function(err) {
             // 加载失败显示错误提示
             var errorDiv = document.getElementById('error');
             errorDiv.style.display = 'block';
             errorDiv.innerHTML = '题库加载失败，请刷新重试：\n' + err.message;
-            document.getElementById('loading').style.display = 'none';
-        });
-
-	// 电脑端键盘左右键切换上下题（仅背题/答题模式生效）
-document.addEventListener('keydown', function(e) {
-    // 仅在背题/答题模式生效，考试模式禁用
-    if(mode !== "recite" && mode !== "practice") return;
-    
-    // 禁止在输入框/文本域中触发（防止意见反馈打字时切题）
-    if(e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    
-    var bank = getCateBank();
-    
-	// 左箭头键 → 上一题
-	if(e.key === 'ArrowLeft' || e.keyCode === 37) {
-	    if (isRandomMode) {
-	        currentPracticeIndex = getRandomNextIndex();
-	    } else {
-	        if(currentPracticeIndex > 0) {
-	            currentPracticeIndex--;
-	        } else {
-	            return;
-	        }
-	    }
-	    if(mode === "recite") reciteIndex = currentPracticeIndex;
-	    if(mode === "practice") practiceIndex = currentPracticeIndex;
-	    renderPractice();
-	    e.preventDefault();
-	}
-	
-	// 右箭头键 → 下一题
-	if(e.key === 'ArrowRight' || e.keyCode === 39) {
-	    if (isRandomMode) {
-	        currentPracticeIndex = getRandomNextIndex();
-	    } else {
-	        if(currentPracticeIndex < bank.length - 1) {
-	            currentPracticeIndex++;
-	        } else {
-	            return;
-	        }
-	    }
-	    if(mode === "recite") reciteIndex = currentPracticeIndex;
-	    if(mode === "practice") practiceIndex = currentPracticeIndex;
-	    renderPractice();
-	    e.preventDefault();
-	}
-});
-        // ========== 新增：题目搜索功能 ==========
-        var searchInput = document.getElementById('questionSearch');
-        // 输入实时搜索
-        searchInput.addEventListener('input', function(){
-            initQuestionList(this.value);
-        });
-        // 打开题目列表时清空搜索框
-        document.getElementById('allList').addEventListener('click', function(){
-            searchInput.value = '';
-            initQuestionList();
-        });
-        // 点击其他按钮（随机/错题/收藏）时清空搜索框
-        document.getElementById('randomBtn').addEventListener('click', function(){
-            searchInput.value = '';
-        });
-        document.getElementById('wrongBtn').addEventListener('click', function(){
-            searchInput.value = '';
-        });
-        document.getElementById('favoriteBtn').addEventListener('click', function(){
-            searchInput.value = '';
-        });
-        // 切换分类时清空搜索框
-        categorySelect.addEventListener('change', function(){
-            searchInput.value = '';
-        });
-		        // ========== 新增：夜间模式切换 ==========
-        var nightModeBtn = document.getElementById('nightModeBtn');
-        // 初始化夜间模式（从本地存储读取）
-        if(localStorage.getItem('nightMode') === 'true'){
-            document.body.classList.add('dark-mode');
-            nightModeBtn.textContent = '日间模式';
-        }
-        // 切换事件
-        nightModeBtn.addEventListener('click', function(){
-            document.body.classList.toggle('dark-mode');
-            var isDark = document.body.classList.contains('dark-mode');
-            localStorage.setItem('nightMode', isDark);
-            this.textContent = isDark ? '日间模式' : '夜间模式';
-            showToast(isDark ? '✅ 已切换夜间模式' : '✅ 已切换日间模式');
-            // 自动关闭题目列表弹窗
-            listModal.style.display = 'none';
-        });
-
-        // ========== 新增：考试得分按钮 ==========
-        document.getElementById('examScoreBtn').addEventListener('click', function(){
-            // 触发考试模式按钮点击
-            document.querySelector('[data-mode="exam"]').click();
-            // 关闭题目列表弹窗
-            listModal.style.display = 'none';
-            showToast('✅ 已进入考试模式');
-        });
-        
-        // ========== 模拟考试选择功能 ==========
-        var selectedSize = null;
-        var selectedTime = null;
-
-        // 考试选项点击事件
-        document.querySelectorAll('.exam-option').forEach(btn => {
-            btn.addEventListener('click', function() {
-                // 清除其他选项的选中状态
-                document.querySelectorAll('.exam-option').forEach(b => {
-                    removeClass(b, 'active');
-                });
-                // 选中当前选项
-                addClass(this, 'active');
-                // 保存选择的参数
-                selectedSize = parseInt(this.getAttribute('data-size'));
-                selectedTime = parseInt(this.getAttribute('data-time'));
-                // 启用开始考试按钮
-                document.getElementById('startExamBtn').disabled = false;
-            });
-        });
-
-        // 开始考试按钮点击事件
-        document.getElementById('startExamBtn').addEventListener('click', function() {
-            if(!selectedSize || !selectedTime) return;
-            
-            // 更新全局考试参数
-            currentExamSize = selectedSize;
-            currentExamTime = selectedTime;
-            pageSizeExam = selectedSize;
-            
-            // 关闭选择弹窗
-            document.getElementById('examSelectModal').style.display = 'none';
-            
-            // 重置并生成新的考试题目
-            resetCountdown();
-            getNewExamBatch();
-            renderExam();
-            
-            // 自动开始倒计时
-            toggleCountdown();
-            
-            showToast(`已开始${selectedSize}道题模拟考试，时长${selectedTime}分钟`);
-        });
-
-        // 点击弹窗空白处关闭
-        document.getElementById('examSelectModal').addEventListener('click', function(e) {
-            if(e.target === this) {
-                document.getElementById('examSelectModal').style.display = 'none';
-            }
+            var loadingEl = document.getElementById('loading');
+            if (loadingEl) loadingEl.remove();
         });
         
     } catch (e) {
         var errorDiv = document.getElementById('error');
         errorDiv.style.display = 'block';
         errorDiv.innerHTML = '初始化出错，请刷新重试：\n' + e.message + '\n行号：' + e.lineNumber;
-        document.getElementById('loading').style.display = 'none';
+        var loadingEl = document.getElementById('loading');
+        if (loadingEl) loadingEl.remove();
     }
 }
 
