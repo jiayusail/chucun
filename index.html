@@ -2492,9 +2492,11 @@ function initAllFeatures() {
 		        }
 		        saveToLocalStorage();
 		        showToast("题库加载完成");
-		    }).catch(function(err){
+	        }).catch(function(err){
+		        // 加载失败，回滚下拉框选中值为当前实际分类
+		        categorySelect.value = currentCategory;
 		        showToast("题库加载失败：" + err.message);
-		    });
+		    });    
 		});
 
         // 绑定模式切换事件
@@ -3604,8 +3606,9 @@ function initQuestionList(keyword){
         div.className = 'search-result-item';
         
         // 保留原有的已答/错题/当前题标记
-        if(practiceAnswers[item.index] !== undefined){
-            if(practiceJudge[item.index] === false) addClass(div, 'wrong');
+        var uniqueKey = currentCategory + '_' + item.index;
+        if(practiceAnswers[uniqueKey] !== undefined){
+            if(practiceJudge[uniqueKey] === false) addClass(div, 'wrong');
             else addClass(div, 'answered');
         }
         if(item.index === currentPracticeIndex) addClass(div, 'current');
