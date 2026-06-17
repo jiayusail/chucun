@@ -1310,9 +1310,27 @@ body.dark-mode .result-close-tip {
         <div class="progress-bar" id="progressWrap">
             <div class="progress-inner" id="progressBar"></div>
         </div>
-        <div id="questions">
-             <div id="loading" class="loading">正在加载题库，请稍候...</div>
-         </div>
+		<div id="questions">
+		    <!-- 首屏内联占位题：与程序代码分类第一题完全一致，无缝衔接真实题库 -->
+		    <div class="question show-answer" id="firstScreenQuestion">
+		        <div class="q-title">第1题：G01指令的功能是什么？【程序代码】</div>
+		        <div class="option correct">
+		            <input type="radio" name="p" value="A" checked> A.直线插补切削
+		        </div>
+		        <div class="option">
+		            <input type="radio" name="p" value="B"> B.程序结束
+		        </div>
+		        <div class="option">
+		            <input type="radio" name="p" value="C"> C.主轴正转
+		        </div>
+		        <div class="option">
+		            <input type="radio" name="p" value="D"> D.快速定位
+		        </div>
+		        <div class="answer-result correct">✅ 正确答案：A</div>
+		        <div class="analysis" style="display:block;">解析：G01是直线插补指令，刀具以F代码指定的进给速度沿直线移动到目标位置，是数控加工中最基础的切削指令。</div>
+		    </div>
+		    <div id="loading" class="loading" style="display:none;">正在加载题库，请稍候...</div>
+		</div>
         <div id="result"></div>
         
         <!-- 知识拓展模块 -->
@@ -3114,6 +3132,9 @@ function initQuestionFeatures() {
         }
 
         ensureCategoryLoaded().then(function() {
+        	// 移除首屏占位题，无缝切换真实题库
+            var firstScreenQ = document.getElementById('firstScreenQuestion');
+            if(firstScreenQ) firstScreenQ.remove();
             // 根据上次保存的模式自动初始化对应UI
             if(mode === "exam"){
                 // 考试模式UI
