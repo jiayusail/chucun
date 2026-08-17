@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
+	<script disable-devtool-auto src="https://cdn.jsdelivr.net/npm/disable-devtool/disable-devtool.min.js"></script>
+<meta property="og:title" content="数控考练通·学技更轻松-CNC答题库在线网站">
+<meta property="og:description" content="数控学徒/调机/编程随身学习工具，答题式学习，高效提升技能，助力求职上岗、升职加薪。">
+<meta property="og:image" content="https://cnc-5iv.pages.dev/images/logo.png">
+<meta property="og:url" content="https://cnc-5iv.pages.dev/">
+<meta property="og:type" content="website">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
@@ -12,19 +18,28 @@
 <!-- 预加载默认分类题库，首屏请求提前启动 -->
 <link rel="preload" href="./data/program-code.json" as="fetch" type="application/json" crossorigin="anonymous">
 <!-- 数控题库 Favicon 图标配置 -->
-<!-- 迅雷浏览器专属图标 -->
-<link rel="shortcut icon" href="/favicon.ico" type="image/x-icon">
-<link rel="icon" href="/favicon.ico" type="image/x-icon">
-<!-- 其他现代浏览器 -->
-<link rel="icon" type="image/png" sizes="16x16" href="/cnc/favicons/favicon-16x16.png">
-<link rel="icon" type="image/png" sizes="32x32" href="/cnc/favicons/favicon-32x32.png">
-<link rel="icon" type="image/png" sizes="96x96" href="/cnc/favicons/favicon-96x96.png">
-<link rel="icon" type="image/svg+xml" href="/cnc/favicons/favicon.svg">
-<link rel="shortcut icon" href="/favicon.ico">
-<link rel="apple-touch-icon" sizes="180x180" href="/cnc/favicons/apple-touch-icon.png">
-<link rel="manifest" href="/cnc/favicons/site.webmanifest">
-<meta name="msapplication-config" content="/cnc/favicons/browserconfig.xml">
+<link rel="icon" href="/favicon/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon/favicon.svg">
+<link rel="icon" type="image/png" href="/favicon/favicon-16x16.png" sizes="16x16">
+<link rel="icon" type="image/png" href="/favicon/favicon-32x32.png" sizes="32x32">
+<link rel="icon" type="image/png" href="/favicon/favicon-48x48.png" sizes="48x48">
+
+<!-- iPhone / iPad 全尺寸桌面图标 -->
+<link rel="apple-touch-icon" href="/favicon/apple-touch-icon.png">
+<link rel="apple-touch-icon" sizes="152x152" href="/favicon/apple-touch-icon-152x152.png">
+<link rel="apple-touch-icon" sizes="167x167" href="/favicon/apple-touch-icon-167x167.png">
+<link rel="apple-touch-icon" sizes="180x180" href="/favicon/apple-touch-icon-180x180.png">
+
+<!-- 安卓PWA桌面图标 -->
+<link rel="icon" type="image/png" sizes="192x192" href="/favicon/android-chrome-192x192.png">
+<link rel="icon" type="image/png" sizes="512x512" href="/favicon/android-chrome-512x512.png">
+
+<!-- Safari固定标签图标 -->
+<link rel="mask-icon" href="/favicon/safari-pinned-tab.svg" color="#3388ee">
 <meta name="theme-color" content="#ffffff">
+
+<!-- PWA配置清单 -->
+<link rel="manifest" href="/favicon/site.webmanifest">
 <title>数控考练通·学技更轻松-CNC答题库在线网站</title>
 <style>
 *{box-sizing:border-box;font-family:"Microsoft YaHei",sans-serif;margin:0;padding:0;}
@@ -1544,7 +1559,7 @@ body.dark-mode .result-close-tip {
 						<td>0.5</td>
 						<td>2.5</td>
 						<td rowspan="13" style="vertical-align: middle; line-height: 1.6; padding: 8px 12px;">
-							根据材质不同，底孔直接可根据实际情况适当加0.1~0.2mm，<br>
+							根据材质不同，底孔直径可根据实际情况适当加0.1~0.2mm，<br>
 							以此确保丝锥加工时不易折断
 						</td>
 					</tr>
@@ -1753,6 +1768,12 @@ window.onerror = function(message, source, lineno, colno, error) {
 	var toastTimer = null;
 	var longToastActive = false;
 	var currentToast = null;
+	
+	// 答对自动下一题定时器
+	var autoNextTimer = null;
+	// 答对后自动切换延迟时间（单位：毫秒，1000 = 1秒，可自行调整手感）
+	var AUTO_NEXT_DELAY = 1000;
+
 	// 自动消失提示函数（可自定义时长，默认2秒）- 中央悬浮显示
 function showToast(text, duration) {
     if(longToastActive) return;
@@ -2956,7 +2977,8 @@ function initQuestionFeatures() {
         
         // 绑定练习模式按钮事件
         document.getElementById('prev').addEventListener('click', function(){
-            var bank = getCateBank();
+            if (autoNextTimer) clearTimeout(autoNextTimer); // 新增此行
+			var bank = getCateBank();
             if (isRandomMode) {
                 currentPracticeIndex = getRandomNextIndex();
             } else {
@@ -2973,6 +2995,7 @@ function initQuestionFeatures() {
         });
         
         document.getElementById('next').addEventListener('click', function(){
+			if (autoNextTimer) clearTimeout(autoNextTimer); // 新增此行
             var bank = getCateBank();
             if (isRandomMode) {
                 currentPracticeIndex = getRandomNextIndex();
@@ -3575,6 +3598,39 @@ function checkPracticeAnswer(){
     
     analysis.style.display = 'block';
     updateQuestionGridMark();
+	// ========== 新增：答对自动切换下一题 ==========
+    if (mode === "practice") {
+        // 先清除已有定时器，防止快速点选导致多次跳转
+        if (autoNextTimer) clearTimeout(autoNextTimer);
+
+        if (isRight) {
+            var bank = getCateBank();
+            var hasNext = false;
+
+            if (isRandomMode) {
+                // 随机刷题模式：题库总数>1就继续抽题
+                hasNext = bank.length > 1;
+            } else {
+                // 顺序刷题模式：非最后一题就继续
+                hasNext = currentPracticeIndex < bank.length - 1;
+            }
+
+            if (hasNext) {
+                autoNextTimer = setTimeout(function() {
+                    if (isRandomMode) {
+                        currentPracticeIndex = getRandomNextIndex();
+                    } else {
+                        currentPracticeIndex++;
+                    }
+                    // 同步答题模式独立索引
+                    practiceIndex = currentPracticeIndex;
+                    renderPractice();
+                }, AUTO_NEXT_DELAY);
+            }
+            // 最后一题答对后不自动跳转，停留在当前页
+        }
+    }
+    // ========== 新增结束 ==========
     updateStats(); // 答题后更新统计
 }
 function updateQuestionGridMark(){
